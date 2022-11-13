@@ -1,0 +1,5 @@
+build/*
+.cache/*
+.vs/*
+out/*
+third_party/angelscript_2.36.0/*
