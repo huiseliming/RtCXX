@@ -173,12 +173,12 @@ void CController::RegisterToScriptEngine()
 
 void CController::Init()
 {
-	BuildInheritedData();
-	RegisterToScriptEngine();
 	if (!AfterRegisterClassCallbackListMap.empty())
 		THROW_STD_EXCEPTION();
 	if (!AfterRegisterClassNameCallbackListMap.empty())
 		THROW_STD_EXCEPTION();
+	BuildInheritedData();
+	RegisterToScriptEngine();
 }
 
 

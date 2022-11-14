@@ -252,8 +252,20 @@ public:
     RtCXXSourceManager = MatchResult.SourceManager;
 
     clang::Decl const *Decl = MatchResult.Nodes.getNodeAs<clang::Decl>("Decl");
-    if (HeaderFiles.contains(
-            RtCXXSourceManager->getFilename(Decl->getLocation()).str())) {
+    auto Filename = RtCXXSourceManager->getFilename(Decl->getLocation());
+    llvm::SmallVector<char, 1024> SmallVector(Filename.begin(), Filename.end());
+    std::unordered_set<unsigned int> FileIDSet;
+    for (auto& HeaderFile : HeaderFiles)
+    {
+        auto ExpectedFileRef = RtCXXSourceManager->getFileManager().getFileRef(HeaderFile);
+        if (ExpectedFileRef)
+        {
+            auto FileRef = ExpectedFileRef.get();
+            FileIDSet.insert(FileRef.getFileEntry().getUID());
+        }
+    }
+    //RtCXXSourceManager->fileid
+    if (FileIDSet.contains(RtCXXSourceManager->getFileEntryRefForID(RtCXXSourceManager->getFileID(Decl->getLocation())).getValue().getUID())) {
       if (clang::EnumDecl const *EnumDecl =
               MatchResult.Nodes.getNodeAs<clang::EnumDecl>("Decl")) {
         EnumDecls.push_back(EnumDecl);
@@ -574,7 +586,10 @@ public:
       return PropertyCodes;
   }
 
-  virtual void onStartOfTranslationUnit() override {}
+  virtual void onStartOfTranslationUnit() override 
+  {
+
+  }
 
   virtual void onEndOfTranslationUnit() override {
       if (RtCXXSourceManager && Context) {
@@ -607,10 +622,34 @@ public:
                         Contexts.push_back(std::format("		____{0:s}.SetOwner(&Class);\n", Method->getNameAsString()));
                         Contexts.push_back(std::format("		Class.InsertFunction(&____{0:s});\n", Method->getNameAsString()));
                         Contexts.push_back(std::format("        ____{0:s}.bIsStatic = {1:s};\n", Method->getNameAsString(), Method->isStatic() ? "true" : "false"));
+                       // asSMethodPtr<sizeof(void (c::*)())>::Convert(AS_METHOD_AMBIGUITY_CAST(r (c::*)p)(&c::m))
                         if (Method->isStatic())
-                            Contexts.push_back(std::format("        ____{0:s}.FuncPtr = asFunctionPtr(reinterpret_cast<void (*)()>(static_cast<F>(&{0:s})));\n", Method->getNameAsString(), Method->getQualifiedNameAsString()));
+                            Contexts.push_back(std::format("        ____{0:s}.FuncPtr = ;\n", Method->getNameAsString(), ""));
                         else
-                            Contexts.push_back(std::format("        ____{0:s}.FuncPtr = asSMethodPtr<sizeof(void({1:s}::*)())>::Convert(static_cast<decltype(&{1:s}::{0:s})>(&{1:s}::{0:s}));\n", Method->getNameAsString(), CXXRecordDecl->getQualifiedNameAsString()));
+                        {
+                            Method
+                            std::string ParamStr;
+                            auto ParamIterator = Method->param_begin();
+                            if (ParamIterator != Method->param_end())
+                            {
+                                auto Param = *ParamIterator;
+                                ParamStr += Param->getType().getAsString();
+                                ParamIterator++;
+                            }
+                            for (; ParamIterator != Method->param_end(); ParamIterator++)
+                            {
+                                auto Param = *ParamIterator;
+                                ParamStr += ", ";
+                                ParamStr += Param->getType().getAsString();
+                            }
+                            std::string SignatureStr = std::format("asMETHODPR({0:s}, {1:s}, ({2:s}), {3:s})",
+                                Method->getParent()->getQualifiedNameAsString(),
+                                Method->getNameAsString(),
+                                ParamStr,
+                                Method->getReturnType().getAsString());
+                            Contexts.push_back(std::format("        ____{0:s}.FuncPtr = {1:s};\n", Method->getNameAsString(), SignatureStr));
+                        }
+
 
 
                         std::vector<std::string> CodeLines = ParseProperty(Method, nullptr, Method->getReturnType());

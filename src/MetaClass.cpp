@@ -2,6 +2,8 @@
 
 RTCXX_NAMESPACE_BEGIN
 
+IMPLEMENT_METADATA_CLASS(CMetaClass)
+
 asUINT CMetaClass::ConvertToScriptEngineTypeTraits()
 {
 

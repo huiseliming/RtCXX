@@ -1,6 +1,10 @@
-StatementMacros: ['UPROPERTY', 'UFUNCTION', 'UCLASS', 'USTRUCT', 'UENUM', 'UINTERFACE', 'GENERATED_BODY']
+StatementMacros: ['RPROPERTY', 'RFUNCTION', 'RCLASS', 'USTRUCT', 'RENUM', 'UINTERFACE', 'GENERATED_CLASS_BODY']
 Language: Cpp
 BasedOnStyle: LLVM
+
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveMacros: Consecutive
+AlignConsecutiveBitFields: Consecutive 
 
 AccessModifierOffset: -4
 AlignAfterOpenBracket: DontAlign

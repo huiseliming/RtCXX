@@ -3,41 +3,60 @@
 
 RTCXX_NAMESPACE_BEGIN
 
-CBoolProperty StandardCBoolProperty("StandardCBoolProperty", 0);
-CNumericProperty StandardCNumericProperty("StandardCNumericProperty", 0);
-CI8Property StandardCI8Property("StandardCI8Property", 0);
-CI16Property StandardCI16Property("StandardCI16Property", 0);
-CI32Property StandardCI32Property("StandardCI32Property", 0);
-CI64Property StandardCI64Property("StandardCI64Property", 0);
-CU8Property StandardCU8Property("StandardCU8Property", 0);
-CU16Property StandardCU16Property("StandardCU16Property", 0);
-CU32Property StandardCU32Property("StandardCU32Property", 0);
-CU64Property StandardCU64Property("StandardCU64Property", 0);
-CF32Property StandardCF32Property("StandardCF32Property", 0);
-CF64Property StandardCF64Property("StandardCF64Property", 0);
-CStrProperty StandardCStrProperty("StandardCStrProperty", 0);
-// CClassProperty StandardCClassProperty("StandardCClassProperty", 0);
-// CObjectProperty StandardCObjectProperty("StandardCObjectProperty", 0);
-// CObjectPtrProperty StandardCObjectPtrProperty("StandardCObjectPtrProperty", 0);
-// CArrayProperty StandardCArrayProperty("StandardCArrayProperty", 0);
+IMPLEMENT_METADATA_CLASS(CMetaProperty)
+IMPLEMENT_METADATA_CLASS(CBoolProperty)
+IMPLEMENT_METADATA_CLASS(CNumericProperty)
+IMPLEMENT_METADATA_CLASS(CI8Property)
+IMPLEMENT_METADATA_CLASS(CI16Property)
+IMPLEMENT_METADATA_CLASS(CI32Property)
+IMPLEMENT_METADATA_CLASS(CI64Property)
+IMPLEMENT_METADATA_CLASS(CU8Property)
+IMPLEMENT_METADATA_CLASS(CU16Property)
+IMPLEMENT_METADATA_CLASS(CU32Property)
+IMPLEMENT_METADATA_CLASS(CU64Property)
+IMPLEMENT_METADATA_CLASS(CF32Property)
+IMPLEMENT_METADATA_CLASS(CF64Property)
+IMPLEMENT_METADATA_CLASS(CStrProperty)
+IMPLEMENT_METADATA_CLASS(CClassProperty)
+IMPLEMENT_METADATA_CLASS(CPtrProperty)
+IMPLEMENT_METADATA_CLASS(CObjectPtrProperty)
+IMPLEMENT_METADATA_CLASS(CArrayProperty)
 
-CPtrProperty StandardPtrCBoolProperty("StandardPtrCBoolProperty", 0);
-CPtrProperty StandardPtrCNumericProperty("StandardPtrCNumericProperty", 0);
-CPtrProperty StandardPtrCI8Property("StandardPtrCI8Property", 0);
-CPtrProperty StandardPtrCI16Property("StandardPtrCI16Property", 0);
-CPtrProperty StandardPtrCI32Property("StandardPtrCI32Property", 0);
-CPtrProperty StandardPtrCI64Property("StandardPtrCI64Property", 0);
-CPtrProperty StandardPtrCU8Property("StandardPtrCU8Property", 0);
-CPtrProperty StandardPtrCU16Property("StandardPtrCU16Property", 0);
-CPtrProperty StandardPtrCU32Property("StandardPtrCU32Property", 0);
-CPtrProperty StandardPtrCU64Property("StandardPtrCU64Property", 0);
-CPtrProperty StandardPtrCF32Property("StandardPtrCF32Property", 0);
-CPtrProperty StandardPtrCF64Property("StandardPtrCF64Property", 0);
-CPtrProperty StandardPtrCStrProperty("StandardPtrCStrProperty", 0);
-// CClassProperty StandardPtrCClassProperty("StandardPtrCClassProperty", 0);
-// CObjectProperty StandardPtrCObjectProperty("StandardPtrCObjectProperty", 0);
-// CObjectPtrProperty StandardPtrCObjectPtrProperty("StandardPtrCObjectPtrProperty", 0);
-// CArrayProperty StandardPtrCArrayProperty("StandardPtrCArrayProperty", 0);
+CBoolProperty StandardCBoolProperty(nullptr, "StandardCBoolProperty", 0, PF_None);
+CNumericProperty StandardCNumericProperty(nullptr, "StandardCNumericProperty", 0, PF_None);
+CI8Property StandardCI8Property(nullptr, "StandardCI8Property", 0, PF_None);
+CI16Property StandardCI16Property(nullptr, "StandardCI16Property", 0, PF_None);
+CI32Property StandardCI32Property(nullptr, "StandardCI32Property", 0, PF_None);
+CI64Property StandardCI64Property(nullptr, "StandardCI64Property", 0, PF_None);
+CU8Property StandardCU8Property(nullptr, "StandardCU8Property", 0, PF_None);
+CU16Property StandardCU16Property(nullptr, "StandardCU16Property", 0, PF_None);
+CU32Property StandardCU32Property(nullptr, "StandardCU32Property", 0, PF_None);
+CU64Property StandardCU64Property(nullptr, "StandardCU64Property", 0, PF_None);
+CF32Property StandardCF32Property(nullptr, "StandardCF32Property", 0, PF_None);
+CF64Property StandardCF64Property(nullptr, "StandardCF64Property", 0, PF_None);
+CStrProperty StandardCStrProperty(nullptr, "StandardCStrProperty", 0, PF_None);
+// CClassProperty StandardCClassProperty(nullptr, "StandardCClassProperty", 0, PF_None);
+// CObjectProperty StandardCObjectProperty(nullptr, "StandardCObjectProperty", 0, PF_None);
+// CObjectPtrProperty StandardCObjectPtrProperty(nullptr, "StandardCObjectPtrProperty", 0, PF_None);
+// CArrayProperty StandardCArrayProperty(nullptr, "StandardCArrayProperty", 0, PF_None);
+
+CPtrProperty StandardPtrCBoolProperty(nullptr, "StandardPtrCBoolProperty", 0, PF_None);
+CPtrProperty StandardPtrCNumericProperty(nullptr, "StandardPtrCNumericProperty", 0, PF_None);
+CPtrProperty StandardPtrCI8Property(nullptr, "StandardPtrCI8Property", 0, PF_None);
+CPtrProperty StandardPtrCI16Property(nullptr, "StandardPtrCI16Property", 0, PF_None);
+CPtrProperty StandardPtrCI32Property(nullptr, "StandardPtrCI32Property", 0, PF_None);
+CPtrProperty StandardPtrCI64Property(nullptr, "StandardPtrCI64Property", 0, PF_None);
+CPtrProperty StandardPtrCU8Property(nullptr, "StandardPtrCU8Property", 0, PF_None);
+CPtrProperty StandardPtrCU16Property(nullptr, "StandardPtrCU16Property", 0, PF_None);
+CPtrProperty StandardPtrCU32Property(nullptr, "StandardPtrCU32Property", 0, PF_None);
+CPtrProperty StandardPtrCU64Property(nullptr, "StandardPtrCU64Property", 0, PF_None);
+CPtrProperty StandardPtrCF32Property(nullptr, "StandardPtrCF32Property", 0, PF_None);
+CPtrProperty StandardPtrCF64Property(nullptr, "StandardPtrCF64Property", 0, PF_None);
+CPtrProperty StandardPtrCStrProperty(nullptr, "StandardPtrCStrProperty", 0, PF_None);
+// CClassProperty StandardPtrCClassProperty(nullptr, "StandardPtrCClassProperty", 0, PF_None);
+// CObjectProperty StandardPtrCObjectProperty(nullptr, "StandardPtrCObjectProperty", 0, PF_None);
+// CObjectPtrProperty StandardPtrCObjectPtrProperty(nullptr, "StandardPtrCObjectPtrProperty", 0, PF_None);
+// CArrayProperty StandardPtrCArrayProperty(nullptr, "StandardPtrCArrayProperty", 0, PF_None);
 
 static struct CStandardPropertyIniter
 {

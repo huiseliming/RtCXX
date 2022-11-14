@@ -127,24 +127,20 @@ public:
 				ExtendsClass = InMetaClass;
 				InMetaClass->DerivedClasses.push_back(this);
 			});
+		static CClassProperty ClassProp(nullptr, "Standard" + Name, 0, PF_None);
+		ClassProp.bIsPointer = false;
+		ClassProp.MetaClass = this;
+		StandardProperty = &ClassProp;
 		if constexpr (std::is_base_of_v<OObject, C>)
 		{
-			static CObjectProperty ObjProp("Standard" + Name, 0);
-			ObjProp.bIsPointer = false;
-			ObjProp.MetaClass = this;
-			StandardProperty = &ObjProp;
-			static CPtrProperty ObjPtrProp("StandardPtr" + Name, 0);
+			static CObjectPtrProperty ObjPtrProp(nullptr, "StandardPtr" + Name, 0, PF_None);
 			ObjPtrProp.bIsPointer = true;
-			ObjPtrProp.PointerToProp = &ObjProp;
+			ObjPtrProp.PointerToProp = &ClassProp;
 			StandardPtrProperty = &ObjPtrProp;
 		}
 		else
 		{
-			static CClassProperty ClassProp("Standard" + Name, 0);
-			ClassProp.bIsPointer = false;
-			ClassProp.MetaClass = this;
-			StandardProperty = &ClassProp;
-			static CPtrProperty ClassPtrProp("StandardPtr" + Name, 0);
+			static CPtrProperty ClassPtrProp(nullptr, "StandardPtr" + Name, 0, PF_None);
 			ClassPtrProp.bIsPointer = true;
 			ClassPtrProp.PointerToProp = &ClassProp;
 			StandardPtrProperty = &ClassPtrProp;

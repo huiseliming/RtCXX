@@ -251,7 +251,7 @@ RTCXX_NAMESPACE_END
 
 class RCLASS() RTCXX_API OObject
 {
-	GENERATED_CLASS_BODY();
+	GENERATED_BODY();
 
 public:
 	OObject()
@@ -263,13 +263,14 @@ public:
 	{
 		printf("OObject::Destructor()");
 	}
-	RFUNCTION()
+
 	RtCXX::CMetaClass* GetClass() { return ObjectType; }
 
 protected: 
-	RFUNCTION()
 	void SetObjectType(RtCXX::CMetaClass* type) { ObjectType = type; }
-
+	RFUNCTION()
+	void SetObjectType(OObject* ObjectType1) {  }
+	 
 private:
 	RtCXX::CMetaClass* ObjectType;
 	RPROPERTY() 
@@ -299,7 +300,7 @@ private:
 
 class RCLASS() RTCXX_API OObjectA : public OObject
 {
-		GENERATED_CLASS_BODY();
+		GENERATED_BODY();
 
 };
 

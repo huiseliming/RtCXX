@@ -2,56 +2,72 @@
 #include "Metadata.h"
 #include "Templates/BytesToSizeType.h"
 
-#define DECLARE_PROPERTY(Class, SuperClass)                                   \
-public:                                                                       \
-	DECLARE_METADATA_STATIC_CAST_FLAG(Class)                                  \
-	FORCEINLINE Class()                                                       \
-		: SuperClass()                                                        \
-	{                                                                         \
-		CastFlags = EMetadataCastFlags(CastFlags | Class::StaticCastFlags()); \
-	}                                                                         \
-	FORCEINLINE Class(const std::string& InName, OffsetSizeType InOffset)     \
-		: SuperClass(InName, InOffset)                                        \
-	{                                                                         \
-		CastFlags = EMetadataCastFlags(CastFlags | Class::StaticCastFlags()); \
+#define DECLARE_PROPERTY_CONSTRUCTOR(TClass, TSupperClass)                                                                                                        \
+	FORCEINLINE TClass(CMetadata* InOwner, const std::string& InName, OffsetSizeType InOffsetOf, EPropertyFlags InPropertyFlags)                                  \
+		: TSupperClass(InOwner, InName, InOffsetOf, InPropertyFlags, TClass::StaticMetadataClass())                                                               \
+	{                                                                                                                                                             \
+	}                                                                                                                                                             \
+	FORCEINLINE TClass(CMetadata* InOwner, const std::string& InName, OffsetSizeType InOffsetOf, EPropertyFlags InPropertyFlags, CMetadataClass* InMetadataClass) \
+		: TSupperClass(InOwner, InName, InOffsetOf, InPropertyFlags, InMetadataClass)                                                                             \
+	{                                                                                                                                                             \
 	}
 
 RTCXX_NAMESPACE_BEGIN
 
+enum EPropertyFlags : U64
+{
+	PF_None			   = 0x0000000000000000,
+	PF_Param		   = 0x0000000000000001, // 标识此属性是函数的参数
+	PF_OutParam		   = 0x0000000000000002, // 标识此属性是函数的输出参数
+	PF_ReturnParam	   = 0x0000000000000004, // 标识此属性是C++函数的返回值
+	PF_ReferenceParm   = 0x0000000000000008, // 标识此属性是函数通过应用传递的参数,其属性类型为CPtrProperty
+	PF_ZeroConstructor = 0x0000000000000010, // 标识此属性不需要构造(可以直接进行内存拷贝)
+	PF_NoDestructor	   = 0x0000000000000020, // 标识此属性不需要析构(可以直接进行内存拷贝)
+
+	PF_Global		   = 0x8000000000000000, // 标识一个全局属性
+	PF_AllFlags = 0xFFFFFFFFFFFFFFFF
+};
+
+DECL_ENUM_FLAGS(EPropertyFlags)
+
 class RTCXX_API CMetaProperty : public CMetadata
 {
+	DECLARE_METADATA_CLASS(CMetaProperty, CMetadata)
 public:
 	using OffsetSizeType = TBytesToSizeType<sizeof(void*)>::Type;
 
 public:
-	DECLARE_METADATA_STATIC_CAST_FLAG(CMetaProperty)
-	FORCEINLINE CMetaProperty()
-		: CMetadata()
+	FORCEINLINE CMetaProperty(CMetadata* InOwner, const std::string& InName, OffsetSizeType InOffsetOf, EPropertyFlags InPropertyFlags)
+		: CMetadata(InOwner, InName, CMetaProperty::StaticMetadataClass())
+		, Offset(InOffsetOf)
+		, PropertyFlags(InPropertyFlags)
 	{
-		CastFlags = EMetadataCastFlags(CastFlags | CMetaProperty::StaticCastFlags());
 	}
-	FORCEINLINE CMetaProperty(const std::string& InName, OffsetSizeType InOffset)
-		: CMetadata(InName)
-		, Offset(InOffset)
+	FORCEINLINE CMetaProperty(CMetadata* InOwner, const std::string& InName, OffsetSizeType InOffsetOf, EPropertyFlags InPropertyFlags, CMetadataClass* InMetadataClass)
+		: CMetadata(InOwner, InName, InMetadataClass)
+		, Offset(InOffsetOf)
+		, PropertyFlags(InPropertyFlags)
 	{
-		CastFlags = EMetadataCastFlags(CastFlags | CMetaProperty::StaticCastFlags());
 	}
+public:	
+	EPropertyFlags PropertyFlags;
+	FORCEINLINE EPropertyFlags GetPropertyFlags() { return PropertyFlags; }
+	FORCEINLINE void SetPropertyFlags(EPropertyFlags NewFlags) { PropertyFlags |= NewFlags; }
+	FORCEINLINE void ClearPropertyFlags(EPropertyFlags NewFlags) { PropertyFlags &= ~NewFlags; }
+	FORCEINLINE bool HasAnyPropertyFlags(EPropertyFlags FlagsToCheck) const { return (PropertyFlags & FlagsToCheck) != 0; }
+	FORCEINLINE bool HasAllPropertyFlags(EPropertyFlags FlagsToCheck) const { return ((PropertyFlags & FlagsToCheck) == FlagsToCheck); }
 
 public:
 	std::string GetScriptDeclaration();
-
-	auto GetValuePtr(void* InContainerPtr) const -> void* { return static_cast<U8*>(InContainerPtr) + Offset; }
-	auto GetValuePtr(const void* InContainerPtr) const -> const void* { return static_cast<const U8*>(InContainerPtr) + Offset; }
+	//FORCEINLINE bool IsPointer() { return GetCastFlags() & MCF_CPtrProperty; }
+	FORCEINLINE auto GetValuePtr(void* InContainerPtr) const -> void* { return static_cast<U8*>(InContainerPtr) + Offset; }
+	FORCEINLINE auto GetValuePtr(const void* InContainerPtr) const -> const void* { return static_cast<const U8*>(InContainerPtr) + Offset; }
 	template <typename T>
-	auto GetValuePtrAs(void* InContainerPtr) const -> T* { return static_cast<T*>(GetValuePtr(InContainerPtr)); }
+	FORCEINLINE auto GetValuePtrAs(void* InContainerPtr) const -> T* { return static_cast<T*>(GetValuePtr(InContainerPtr)); }
 	template <typename T>
-	auto GetValueRefAs(void* InContainerPtr) const -> T& { return *static_cast<T*>(GetValuePtr(InContainerPtr)); }
+	FORCEINLINE auto GetValueRefAs(void* InContainerPtr) const -> T& { return *static_cast<T*>(GetValuePtr(InContainerPtr)); }
 
-	virtual std::string GetScriptTypeDecl()
-	{
-		return "void";
-	}
-
+	virtual std::string GetScriptTypeDecl() { return "void"; }
 	virtual void CopyValue(void* Dest, void const* Src) const { ; }
 	virtual void MoveValue(void* Dest, void const* Src) const { ; }
 
@@ -59,13 +75,12 @@ public:
 	CMetaProperty* PropertyLinkNext = nullptr;
 	// CMetaClass* MetaClass = nullptr;
 	OffsetSizeType Offset = 0;
-	bool bIsStatic : 1;
-	bool bIsReturn : 1;
-	bool bIsPointer : 1;
+
+	bool bIsStatic	  : 1;
+	bool bIsReturn	  : 1;
+	bool bIsPointer	  : 1;
 	bool bIsReference : 1;
-	bool bIsOut : 1;
-
-
+	bool bIsOut		  : 1;
 
 protected:
 	template <typename T>
@@ -74,8 +89,9 @@ protected:
 
 class RTCXX_API CBoolProperty : public CMetaProperty
 {
+	DECLARE_METADATA_CLASS(CBoolProperty, CMetaProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CBoolProperty, CMetaProperty)
 public:
-	DECLARE_PROPERTY(CBoolProperty, CMetaProperty);
 	std::string GetScriptTypeDecl() override;
 
 public:
@@ -84,9 +100,9 @@ public:
 
 class RTCXX_API CNumericProperty : public CMetaProperty
 {
+	DECLARE_METADATA_CLASS(CNumericProperty, CMetaProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CNumericProperty, CMetaProperty)
 public:
-	DECLARE_PROPERTY(CNumericProperty, CMetaProperty)
-
 public:
 	virtual void SetI64Value(void* InContainerPtr, I64 InValue) { assert(0); }
 	virtual void SetU64Value(void* InContainerPtr, U64 InValue) { assert(0); }
@@ -119,12 +135,8 @@ template <typename T>
 class TNumericProperty : public CNumericProperty
 {
 public:
-	TNumericProperty()
-		: CNumericProperty()
-	{
-	}
-	TNumericProperty(const std::string& InName, OffsetSizeType InOffset)
-		: CNumericProperty(InName, InOffset)
+	FORCEINLINE TNumericProperty(CMetadata* InOwner, const std::string& InName, OffsetSizeType InOffsetOf, EPropertyFlags InPropertyFlags, CMetadataClass* InMetadataClass)
+		: CNumericProperty(InOwner, InName, InOffsetOf, InPropertyFlags, InMetadataClass)
 	{
 	}
 
@@ -150,120 +162,127 @@ public:
 
 class RTCXX_API CI8Property : public TNumericProperty<I8>
 {
+	DECLARE_METADATA_CLASS(CI8Property, CNumericProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CI8Property, TNumericProperty<I8>)
 public:
-	DECLARE_PROPERTY(CI8Property, TNumericProperty<I8>)
 	std::string GetScriptTypeDecl() override;
 };
 
 class RTCXX_API CI16Property : public TNumericProperty<I16>
 {
+	DECLARE_METADATA_CLASS(CI16Property, CNumericProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CI16Property, TNumericProperty<I16>)
 public:
-	DECLARE_PROPERTY(CI16Property, TNumericProperty<I16>)
 	std::string GetScriptTypeDecl() override;
 };
 
 class RTCXX_API CI32Property : public TNumericProperty<I32>
 {
+	DECLARE_METADATA_CLASS(CI32Property, CNumericProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CI32Property, TNumericProperty<I32>)
 public:
-	DECLARE_PROPERTY(CI32Property, TNumericProperty<I32>)
 	std::string GetScriptTypeDecl() override;
 };
 
 class RTCXX_API CI64Property : public TNumericProperty<I64>
 {
+	DECLARE_METADATA_CLASS(CI64Property, CNumericProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CI64Property, TNumericProperty<I64>)
 public:
-	DECLARE_PROPERTY(CI64Property, TNumericProperty<I64>)
 	std::string GetScriptTypeDecl() override;
 };
 
 class RTCXX_API CU8Property : public TNumericProperty<U8>
 {
+	DECLARE_METADATA_CLASS(CU8Property, CNumericProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CU8Property, TNumericProperty<U8>)
 public:
-	DECLARE_PROPERTY(CU8Property, TNumericProperty<U8>)
 	std::string GetScriptTypeDecl() override;
 };
 
 class RTCXX_API CU16Property : public TNumericProperty<U16>
 {
+	DECLARE_METADATA_CLASS(CU16Property, CNumericProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CU16Property, TNumericProperty<U16>)
 public:
-	DECLARE_PROPERTY(CU16Property, TNumericProperty<U16>)
 	std::string GetScriptTypeDecl() override;
 };
 
 class RTCXX_API CU32Property : public TNumericProperty<U32>
 {
+	DECLARE_METADATA_CLASS(CU32Property, CNumericProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CU32Property, TNumericProperty<U32>)
 public:
-	DECLARE_PROPERTY(CU32Property, TNumericProperty<U32>)
 	std::string GetScriptTypeDecl() override;
 };
 
 class RTCXX_API CU64Property : public TNumericProperty<U64>
 {
+	DECLARE_METADATA_CLASS(CU64Property, CNumericProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CU64Property, TNumericProperty<U64>)
 public:
-	DECLARE_PROPERTY(CU64Property, TNumericProperty<U64>)
 	std::string GetScriptTypeDecl() override;
 };
 
 class RTCXX_API CF32Property : public TNumericProperty<F32>
 {
+	DECLARE_METADATA_CLASS(CF32Property, CNumericProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CF32Property, TNumericProperty<F32>)
 public:
-	DECLARE_PROPERTY(CF32Property, TNumericProperty<F32>)
 	std::string GetScriptTypeDecl() override;
 };
 
 class RTCXX_API CF64Property : public TNumericProperty<F64>
 {
+	DECLARE_METADATA_CLASS(CF64Property, CNumericProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CF64Property, TNumericProperty<F64>)
 public:
-	DECLARE_PROPERTY(CF64Property, TNumericProperty<F64>)
+	std::string GetScriptTypeDecl() override;
+};
+
+class RTCXX_API CStrProperty : public CMetaProperty
+{
+	DECLARE_METADATA_CLASS(CStrProperty, CMetaProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CStrProperty, CMetaProperty)
+public:
 	std::string GetScriptTypeDecl() override;
 };
 
 class RTCXX_API CClassProperty : public CMetaProperty
 {
+	DECLARE_METADATA_CLASS(CClassProperty, CMetaProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CClassProperty, CMetaProperty)
 public:
-	DECLARE_PROPERTY(CClassProperty, CMetaProperty)
 	std::string GetScriptTypeDecl() override;
 
 	CMetaClass* MetaClass;
 };
 
-class RTCXX_API CStrProperty : public CClassProperty
-{
-public:
-	DECLARE_PROPERTY(CStrProperty, CClassProperty)
-	std::string GetScriptTypeDecl() override;
-};
-
-class RTCXX_API CObjectProperty : public CClassProperty
-{
-public:
-	DECLARE_PROPERTY(CObjectProperty, CClassProperty)
-	// std::string GetScriptTypeDecl() override { return "int8"; }
-};
-
 class RTCXX_API CPtrProperty : public CMetaProperty
 {
+	DECLARE_METADATA_CLASS(CPtrProperty, CMetaProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CPtrProperty, CMetaProperty)
 public:
-	DECLARE_PROPERTY(CPtrProperty, CMetaProperty)
-	// std::string GetScriptTypeDecl() override { return "int8"; }
+	std::string GetScriptTypeDecl() override { return PointerToProp->GetScriptTypeDecl() + "&"; }
 
 	CMetaProperty* PointerToProp;
 };
 
 class RTCXX_API CObjectPtrProperty : public CPtrProperty
 {
+	DECLARE_METADATA_CLASS(CObjectPtrProperty, CPtrProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CObjectPtrProperty, CPtrProperty)
 public:
-	DECLARE_PROPERTY(CObjectPtrProperty, CPtrProperty)
-	// std::string GetScriptTypeDecl() override { return "int8"; }
+
 };
 
 class RTCXX_API CArrayProperty : public CMetaProperty
 {
+	DECLARE_METADATA_CLASS(CArrayProperty, CPtrProperty)
+	DECLARE_PROPERTY_CONSTRUCTOR(CArrayProperty, CMetaProperty)
 public:
-	DECLARE_PROPERTY(CArrayProperty, CMetaProperty)
-	// std::string GetScriptTypeDecl() override { return "int8"; }
-
 	CMetaProperty* ElementProp;
+
 };
 
 RTCXX_API extern CBoolProperty StandardCBoolProperty;
@@ -302,105 +321,104 @@ RTCXX_API extern CPtrProperty StandardPtrCStrProperty;
 //RTCXX_API extern CObjectPtrProperty StandardPtrCObjectPtrProperty;
 //RTCXX_API extern CArrayProperty StandardPtrCArrayProperty;
 
-
- template <typename T, class Enabled = void>
- struct TSelectMetaProperty
+template <typename T, class Enabled = void>
+struct TSelectMetaProperty
 {
 	using Type = void;
 };
 
- template <>
- struct TSelectMetaProperty<void>
+template <>
+struct TSelectMetaProperty<void>
 {
 	using Type = CMetaProperty;
 };
 
- template <>
- struct TSelectMetaProperty<bool>
+template <>
+struct TSelectMetaProperty<bool>
 {
 	using Type = CBoolProperty;
 };
 
- template <>
- struct TSelectMetaProperty<I8>
+template <>
+struct TSelectMetaProperty<I8>
 {
 	using Type = CI8Property;
 };
 
- template <>
- struct TSelectMetaProperty<I16>
+template <>
+struct TSelectMetaProperty<I16>
 {
 	using Type = CI16Property;
 };
 
- template <>
- struct TSelectMetaProperty<I32>
+template <>
+struct TSelectMetaProperty<I32>
 {
 	using Type = CI32Property;
 };
 
- template <>
- struct TSelectMetaProperty<I64>
+template <>
+struct TSelectMetaProperty<I64>
 {
 	using Type = CI64Property;
 };
 
- template <>
- struct TSelectMetaProperty<U8>
+template <>
+struct TSelectMetaProperty<U8>
 {
 	using Type = CU8Property;
 };
 
- template <>
- struct TSelectMetaProperty<U16>
+template <>
+struct TSelectMetaProperty<U16>
 {
 	using Type = CU16Property;
 };
 
- template <>
- struct TSelectMetaProperty<U32>
+template <>
+struct TSelectMetaProperty<U32>
 {
 	using Type = CU32Property;
 };
 
- template <>
- struct TSelectMetaProperty<U64>
+template <>
+struct TSelectMetaProperty<U64>
 {
 	using Type = CU64Property;
 };
 
- template <>
- struct TSelectMetaProperty<F32>
+template <>
+struct TSelectMetaProperty<F32>
 {
 	using Type = CF32Property;
 };
 
- template <>
- struct TSelectMetaProperty<F64>
+template <>
+struct TSelectMetaProperty<F64>
 {
 	using Type = CF64Property;
 };
 
- template <>
- struct TSelectMetaProperty<std::string>
+template <>
+struct TSelectMetaProperty<std::string>
 {
 	using Type = CStrProperty;
 };
 
- template <typename T>
- struct TSelectMetaProperty<T, std::enable_if_t<std::is_base_of_v<OObject, T>>>
-{
-	using Type = CObjectProperty;
-};
+//template <typename T>
+//struct TSelectMetaProperty<T, std::enable_if_t<std::is_base_of_v<OObject, T>>>
+//{
+//	using Type = CObjectProperty;
+//};
 
- template <typename T>
- struct TSelectMetaProperty<T, std::enable_if_t<std::is_pointer_v<T> && std::is_base_of_v<OObject, std::remove_pointer_t<T>>>>
+template <typename T>
+struct TSelectMetaProperty<T, std::enable_if_t<std::is_pointer_v<T> && std::is_base_of_v<OObject, std::remove_pointer_t<T>>>>
 {
 	using Type = CObjectPtrProperty;
 };
 
- template <typename T>
- struct TSelectMetaProperty<T, std::enable_if_t<std::is_class_v<T>>>
+template <typename T>
+struct TSelectMetaProperty<T, std::enable_if_t<std::is_class_v<T>>>
 {
 	using Type = CClassProperty;
 };

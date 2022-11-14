@@ -5,7 +5,7 @@
 
 class RCLASS() BaseA
 {
-	GENERATED_CLASS_BODY()
+	GENERATED_BODY()
 public:
 	RFUNCTION()
 	int FuncA(int i1, int i2, int i3) { 
@@ -16,7 +16,7 @@ public:
 
 struct RCLASS() DerivedAA : public BaseA
 {
-	GENERATED_CLASS_BODY()
+	GENERATED_BODY()
 		RFUNCTION()
 		int FuncAA(int i1, int i2, int i3) {
 		return i1 + i2 + i3;
@@ -28,7 +28,7 @@ struct RCLASS() DerivedAA : public BaseA
 
 struct RCLASS() DerivedAB : public BaseA
 {
-	GENERATED_CLASS_BODY()
+	GENERATED_BODY()
 		RFUNCTION()
 		int FuncAB(int i1, int i2, int i3) {
 		return i1 + i2 + i3;
@@ -39,7 +39,7 @@ struct RCLASS() DerivedAB : public BaseA
 
 struct RCLASS() DerivedAAA : public DerivedAA
 {
-	GENERATED_CLASS_BODY()
+	GENERATED_BODY()
 
 	RFUNCTION()
 	int FuncAAA(int i1, int i2, int i3) {
@@ -51,7 +51,7 @@ struct RCLASS() DerivedAAA : public DerivedAA
 
 struct RCLASS() DerivedAAB : public DerivedAA
 {
-	GENERATED_CLASS_BODY()
+	GENERATED_BODY()
 		RFUNCTION()
 		int FuncAAB(int i1, int i2, int i3) {
 		return i1 + i2 + i3;
@@ -62,7 +62,7 @@ struct RCLASS() DerivedAAB : public DerivedAA
 
 struct RCLASS() DerivedABA : public DerivedAB
 {
-	GENERATED_CLASS_BODY()
+	GENERATED_BODY()
 		RFUNCTION()
 		int FuncABA(int i1, int i2, int i3) {
 		return i1 + i2 + i3;
@@ -73,7 +73,7 @@ struct RCLASS() DerivedABA : public DerivedAB
 
 class RCLASS() OApplication
 {
-	GENERATED_CLASS_BODY()
+	GENERATED_BODY()
 public:
 	RFUNCTION()
 	void StartUp()
