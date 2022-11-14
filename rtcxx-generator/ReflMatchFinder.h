@@ -85,7 +85,7 @@ struct CPropertyConstructor {
       return PropertyName;
   }
 
-  virtual void ConstructCode(std::vector<std::string>& Lines) {
+  virtual void ConstructCode(std::vector<std::string>& Lines, std::vector<std::string>& InPropertyFlags) {
     std::string Code;
     if (auto OwnerCXXRecordDecl = dyn_cast<clang::CXXRecordDecl>(OwnerDecl))
     {
@@ -98,14 +98,6 @@ struct CPropertyConstructor {
         Lines.push_back(std::format("		static {2:s} {1:s}(\"{0:s}\", 0);\n", PropertyDecl ? PropertyDecl->getNameAsString() : "_", GetPropertyName(), GetPropertyType()));
         Lines.push_back(std::format("		{0:s}.SetOwner(&____{1:s});\n", GetPropertyName(), OwnerFunctionDecl->getNameAsString()));
         Lines.push_back(std::format("		____{1:s}.InsertProperty(&{0:s});\n", GetPropertyName(), OwnerFunctionDecl->getNameAsString()));
-        if (!PropertyDecl)
-        {
-            Lines.push_back(std::format("		{0:s}.bIsReturn = true;\n", GetPropertyName()));
-        }
-        else
-        {
-            Lines.push_back(std::format("		{0:s}.bIsReturn = false;\n", GetPropertyName()));
-        }
     }
     if (OwnerDecl)
     {
@@ -183,8 +175,8 @@ struct CPtrPropertyConstructor : public CPropertyConstructor
     DECL_CAST(CPtrPropertyConstructor, CPropertyConstructor)
     std::shared_ptr<CPropertyConstructor> PointerToProp;
     virtual std::string GetPropertyType() { return "CPtrProperty"; }
-    virtual void ConstructCode(std::vector<std::string>& Lines) {
-        CPropertyConstructor::ConstructCode(Lines);
+    virtual void ConstructCode(std::vector<std::string>& Lines, std::vector<std::string>& InPropertyFlags) {
+        CPropertyConstructor::ConstructCode(Lines, InPropertyFlags);
         if (auto PointerToClassProp = PointerToProp->CastTo<CClassPropertyConstructor>())
         {
             Lines.push_back(std::format("        Controller->GetClassByAfterRegisterClassCallback(\"{0:s}\", [&](CMetaClass* InMetaClass) {{ {1:s}.PointerToProp = InMetaClass->StandardProperty; }});\n", PointerToClassProp->ClassName, GetPropertyName()));
@@ -213,8 +205,8 @@ struct CObjectPtrPropertyConstructor : public CPtrPropertyConstructor {
 struct CArrayPropertyConstructor : public CPropertyConstructor {
     DECL_CAST(CArrayPropertyConstructor, CPropertyConstructor)
     virtual std::string GetPropertyType() { return "CArrayProperty"; }
-    virtual void ConstructCode(std::vector<std::string>& Lines) {
-         CPropertyConstructor::ConstructCode(Lines);
+    virtual void ConstructCode(std::vector<std::string>& Lines, std::vector<std::string>& InPropertyFlags) {
+         CPropertyConstructor::ConstructCode(Lines, InPropertyFlags);
         std::string PtrStr;
         auto PropConstructor = ElementProp.get();
         if (auto ElementPtrProp = PropConstructor->CastTo<CPtrPropertyConstructor>())
@@ -455,12 +447,13 @@ public:
     OutMetadataDefineString += std::format("}};\n");
   }
 
-  std::vector<std::string> ParseProperty(const clang::NamedDecl* OwnerDecl, const clang::NamedDecl* PropertyDecl, clang::QualType PropertyType)
+  std::vector<std::string> ParseProperty(const clang::NamedDecl* OwnerDecl, const clang::NamedDecl* PropertyDecl, clang::QualType PropertyType, std::vector<std::string> PropertyFlags = {})
   {
       std::vector<std::string> PropertyCodes;
       std::shared_ptr<CArrayPropertyConstructor> ArrayPropertyConstructor;
       std::shared_ptr<CPtrPropertyConstructor> PtrPropertyConstructor;
       std::shared_ptr<CPropertyConstructor> PropertyConstructor;
+      auto PropertyCXXRecordDecl = PropertyType->getAsCXXRecordDecl();
       if (!PropertyType->isVoidType())
       {
           if (PropertyType->isArrayType()) {
@@ -476,7 +469,7 @@ public:
           else if (PropertyType->isReferenceType()) {
               if (auto OwnerFunctionDecl = dyn_cast<clang::FunctionDecl>(OwnerDecl))
               {
-                  // Ptr == Ref
+                  PropertyFlags.push_back("PF_ReferenceParam");
                   PtrPropertyConstructor = std::make_shared<CPtrPropertyConstructor>();
               }
               else
@@ -580,9 +573,60 @@ public:
               ArrayPropertyConstructor->ElementProp = PropertyConstructor;
           }
       }
-        RootPropertyConstructor->OwnerDecl = OwnerDecl;
+      RootPropertyConstructor->OwnerDecl = OwnerDecl;
       RootPropertyConstructor->PropertyDecl = PropertyDecl;
-      RootPropertyConstructor->ConstructCode(PropertyCodes);
+      if (RootPropertyConstructor == PropertyConstructor)
+      {
+
+      }
+      else if (RootPropertyConstructor == PtrPropertyConstructor)
+      {
+
+      }
+      else if (RootPropertyConstructor == ArrayPropertyConstructor)
+      {
+
+      }
+      std::string PropertyFlagsStr;
+      if (!PropertyFlags.empty())
+      {
+          PropertyFlagsStr = PropertyFlags[0];
+          for (size_t i = 1; i < PropertyFlags.size(); i++)
+          {
+              PropertyFlagsStr += " | ";
+              PropertyFlagsStr += PropertyFlags[i];
+          }
+      }
+      if (PropertyFlagsStr.empty()) PropertyFlagsStr = "PF_None";
+      if (auto OwnerCXXRecordDecl = dyn_cast<clang::CXXRecordDecl>(OwnerDecl))
+      {
+          PropertyCodes.push_back(std::format("        StaticCreateUniqueProperty<{0:s}, {1:s}>(Class, \"{2:s}\", {3:s}, {4:s}, {5:s});\n",
+              OwnerCXXRecordDecl->getQualifiedNameAsString(),
+              "decltype(&" + OwnerCXXRecordDecl->getQualifiedNameAsString() + "::" + PropertyDecl->getNameAsString() + ")",
+              PropertyDecl->getNameAsString(),
+              "offsetof(" + OwnerCXXRecordDecl->getQualifiedNameAsString() + ", " + PropertyDecl->getNameAsString() + ")",
+              PropertyFlagsStr,
+              PropertyCXXRecordDecl ? "\"" + PropertyCXXRecordDecl->getNameAsString() + "\"" : "nullptr"));
+      }
+      if (auto OwnerCXXMethodDecl = dyn_cast<clang::CXXMethodDecl>(OwnerDecl))
+      {
+          unsigned ParameterIndex = -1;
+          if (PropertyDecl) 
+          {
+              if (auto PropertyParmVarDecl = dyn_cast<clang::ParmVarDecl>(PropertyDecl))
+              {
+                  ParameterIndex = PropertyParmVarDecl->getFunctionScopeIndex();
+              }
+          }
+          PropertyCodes.push_back(std::format("        StaticCreateUniqueProperty<{0:s}, {1:s}>(Function, \"{2:s}\", {3:s}, {4:s}, {5:s});\n",
+              "decltype(&" + OwnerCXXMethodDecl->getQualifiedNameAsString() + ")",
+              "TParameterIndex<" + std::to_string(ParameterIndex) + ">",
+              OwnerDecl ? OwnerDecl->getNameAsString() : "",
+              std::to_string(ParameterIndex),
+              PropertyFlagsStr,
+              PropertyCXXRecordDecl ? "\"" + PropertyCXXRecordDecl->getNameAsString() + "\"" : "nullptr"));
+      }
+      //RootPropertyConstructor->ConstructCode(PropertyCodes, PropertyFlags);
       return PropertyCodes;
   }
 
@@ -618,7 +662,9 @@ public:
                       auto Method = *MethodIterator;
                     std::unordered_map<std::string, std::string> MethodMetadata;
                     if (ParseReflectAnnotation(Method, MethodMetadata)) {
-                        Contexts.push_back(std::format("        static CMetaFunction ____{0:s}(\"{0:s}\");\n", Method->getNameAsString()));
+                        Contexts.push_back(std::format("        StaticCreateUniqueFunction<, >(Class, const std::string& InName, FunctionType FuncPtr, EPropertyFlags InPropertyFlags);\n",
+                            Method->getNameAsString()));
+                        Contexts.push_back(std::format("        static CMetaFunction ____{0:s}(Class, \"{0:s}\", FF_None);\n", Method->getNameAsString()));
                         Contexts.push_back(std::format("		____{0:s}.SetOwner(&Class);\n", Method->getNameAsString()));
                         Contexts.push_back(std::format("		Class.InsertFunction(&____{0:s});\n", Method->getNameAsString()));
                         Contexts.push_back(std::format("        ____{0:s}.bIsStatic = {1:s};\n", Method->getNameAsString(), Method->isStatic() ? "true" : "false"));
@@ -627,7 +673,6 @@ public:
                             Contexts.push_back(std::format("        ____{0:s}.FuncPtr = ;\n", Method->getNameAsString(), ""));
                         else
                         {
-                            Method
                             std::string ParamStr;
                             auto ParamIterator = Method->param_begin();
                             if (ParamIterator != Method->param_end())
@@ -652,12 +697,14 @@ public:
 
 
 
-                        std::vector<std::string> CodeLines = ParseProperty(Method, nullptr, Method->getReturnType());
+                        std::vector<std::string> MethodReturnPropertyFlags = { "PF_Param", "PF_OutParam", "PF_ReturnParam"};
+                        std::vector<std::string> CodeLines = ParseProperty(Method, nullptr, Method->getReturnType(), MethodReturnPropertyFlags);
                         Contexts.insert(Contexts.end(), CodeLines.begin(), CodeLines.end());
                         for (auto ParamIterator = Method->param_begin(); ParamIterator != Method->param_end(); ParamIterator++)
                         {
                             auto Param = *ParamIterator;
-                            CodeLines = ParseProperty(Method, Param, Param->getType());
+                            std::vector<std::string> MethodParamPropertyFlags = { "PF_Param" };
+                            CodeLines = ParseProperty(Method, Param, Param->getType(), MethodParamPropertyFlags);
                             Contexts.insert(Contexts.end(), CodeLines.begin(), CodeLines.end());
                         }
                         Contexts.push_back(std::format("		Controller->RegisterMetadata(&____{0:s});\n", Method->getNameAsString()));

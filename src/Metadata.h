@@ -3,25 +3,8 @@
 #include <any>
 #include <string>
 #include <unordered_map>
-
+ 
 RTCXX_NAMESPACE_BEGIN
-//
-//#define DECLARE_METADATA_STATIC_CAST_FLAG(Class) \
-//	constexpr static EMetadataCastFlags StaticCastFlags() { return EMetadataCastFlags(MCF_##Class); }
-
-//#define DECLARE_METADATA_CLASS(Class, SuperClass)                                   \
-//public:                                                                       \
-//	DECLARE_METADATA_STATIC_CAST_FLAG(Class)                                  \
-//	FORCEINLINE Class()                                                       \
-//		: SuperClass()                                                        \
-//	{                                                                         \
-//		CastFlags = EMetadataCastFlags(CastFlags | Class::StaticCastFlags()); \
-//	}                                                                         \
-//	FORCEINLINE Class(const std::string& InName)                              \
-//		: SuperClass(InName)                                                  \
-//	{                                                                         \
-//		CastFlags = EMetadataCastFlags(CastFlags | Class::StaticCastFlags()); \
-//	}
 
 enum EMetadataCastFlags : U32
 {
@@ -49,7 +32,6 @@ enum EMetadataCastFlags : U32
 	MCF_CObjectPtrProperty = 0x00100000,
 	MCF_CArrayProperty	   = 0x00200000,
 };
-
 DECL_ENUM_FLAGS(EMetadataCastFlags);
 
 class CMetadataClass

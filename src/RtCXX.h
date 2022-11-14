@@ -6,6 +6,7 @@
 #include "Templates/FunctionTraits.h"
 #include "Templates/Null.h"
 #include "Cast.h"
+#include "Templates/IsArray.h"
 
 RTCXX_NAMESPACE_BEGIN
 
@@ -70,31 +71,16 @@ private:
 	friend RTCXX_API CController* GetControllerPtr();
 };
 
-template <typename T>
-struct TPropertyTraitsBase
-{
-	using ClassType = void;
-	using PropertyType = std::remove_pointer_t<T>;
-	static constexpr bool SIsStatic = true;
-	static constexpr bool SIsPointer = std::is_pointer_v<PropertyType>;
-	static constexpr bool SIsReference = false; //无法检测到全局变量的引用
-};
+//template <typename T, typename Enable = void>
+//struct TPropertyTraits : public TPropertyTraitsBase<T>
+//{
+//};
+//
+//template<class T>
+//class TPropertyTraits<T, typename std::enable_if<std::is_floating_point<T>::value>::type> 
+//{
+//}; // specialization for floating point types
 
-template <typename C, typename T>
-struct TPropertyTraitsBase<T C::*>
-{
-	using ClassType = C;
-	using PropertyType = T;
-	static constexpr bool SIsStatic = false;
-	static constexpr bool SIsPointer = std::is_pointer_v<PropertyType>;
-	static constexpr bool SIsReference = std::is_reference_v<PropertyType>;
-
-};
-
-template <typename T>
-struct TPropertyTraits : public TPropertyTraitsBase<T>
-{
-};
 
 template <typename C /*lass*/, typename E /*xtends*/ = void>
 class TClass : public CMetaClass
@@ -268,131 +254,267 @@ public:
 		}
 	}
 };
+//
+//template <typename OwnerType, typename P /*ropertyType*/ = void>
+//struct TProperty
+//{
+//	constexpr TProperty(P InProperty)
+//	{
+//	
+//	}
+//	using ClassType = typename TPropertyTraits<P>::ClassType;
+//	using PropertyType = typename TPropertyTraits<P>::PropertyType;
+//
+//	using RemoveRefPropertyType = std::conditional_t<std::is_reference_v<PropertyType>, std::remove_reference_t<PropertyType>, PropertyType>;
+//	using RemovePtrPropertyType = std::conditional_t<std::is_pointer_v<PropertyType>, std::remove_pointer_t<PropertyType>, PropertyType>;
+//	static_assert(!std::is_pointer_v<RemoveRefPropertyType>);
+//	static_assert(!std::is_pointer_v<RemovePtrPropertyType>);
+//	using PropertyMetaClass = std::conditional_t<std::is_reference_v<PropertyType>, std::remove_reference_t<PropertyType>, std::conditional_t<std::is_pointer_v<PropertyType>, std::remove_pointer_t<PropertyType>, PropertyType>>;
+//
+//	static constexpr bool SIsStatic = !std::is_member_object_pointer_v<P>;
+//	static constexpr bool SIsPointer = std::is_pointer_v<PropertyType>;
+//
+//	constexpr static bool IsStatic() { return SIsStatic; }
+//	constexpr static bool IsPointer() { return SIsPointer; }
+//
+//};
+//
+//template <typename OwnerFunction, typename P /*ropertyType*/ = void>
+//struct TParameter
+//{
+//	using ClassType = typename TPropertyTraits<P>::ClassType;
+//	using PropertyType = typename TPropertyTraits<P>::PropertyType;
+//
+//	using RemovePtrPropertyType = std::conditional_t<std::is_pointer_v<PropertyType>, std::remove_pointer_t<PropertyType>, PropertyType>;
+//	static_assert(!std::is_pointer_v<RemovePtrPropertyType>);
+//
+//	using PropertyMetaClass = std::conditional_t<std::is_reference_v<PropertyType>, std::remove_reference_t<PropertyType>, std::conditional_t<std::is_pointer_v<PropertyType>, std::remove_pointer_t<PropertyType>, PropertyType>>;
+//
+//	static constexpr bool SIsStatic = false;
+//	static constexpr bool SIsPointer = std::is_pointer_v<PropertyType>;
+//
+//	static CMetaProperty* CreateStatic(const std::string& InName, P InProperty, CMetaProperty::OffsetSizeType InOffsetOf = 0, CMetaFunction* InOwnerFunction = nullptr, CController* InController = nullptr)
+//	{
+//		if (!InController)
+//			InController = GetControllerPtr();
+//		static CMetaProperty* MetaPropertyPtr = [&]() -> CMetaProperty* {
+//			static typename TMetaProperty<PropertyMetaClass>::Type StaticMetaProperty(InName);
+//			StaticMetaProperty.SetOwner(InOwnerFunction);
+//			StaticMetaProperty.bIsStatic = SIsStatic;
+//			StaticMetaProperty.bIsPointer = SIsPointer;
+//			StaticMetaProperty.Offset = InOffsetOf;
+//			InOwnerFunction->InsertProperty(&StaticMetaProperty);
+//			if (auto ClassProperty = StaticMetaProperty.CastTo<CClassProperty>())
+//			{
+//				InController->GetClassByAfterRegisterClassCallback(typeid(PropertyMetaClass), [ClassProperty](CMetaClass* InPropertyType) {
+//					ClassProperty->MetaClass = InPropertyType;
+//					});
+//			}
+//			InController->RegisterMetadata(&StaticMetaProperty);
+//			return &StaticMetaProperty;
+//		}();
+//		return MetaPropertyPtr;
+//	}
+//};
+//
 
-template <typename OwnerType, typename P /*ropertyType*/ = void>
-struct TProperty
-{
-	constexpr TProperty(P InProperty)
-	{
-	
-	}
-	using ClassType = typename TPropertyTraits<P>::ClassType;
-	using PropertyType = typename TPropertyTraits<P>::PropertyType;
+template <typename T, class Enabled = void>
+struct TMetaProperty{ using Type = void;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<void       , T>>>{ using Type = CMetaProperty;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<bool       , T>>>{ using Type = CBoolProperty;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<I8         , T>>>{ using Type = CI8Property  ;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<I16        , T>>>{ using Type = CI16Property ;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<I32        , T>>>{ using Type = CI32Property ;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<I64        , T>>>{ using Type = CI64Property ;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<U8         , T>>>{ using Type = CU8Property  ;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<U16        , T>>>{ using Type = CU16Property ;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<U32        , T>>>{ using Type = CU32Property ;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<U64        , T>>>{ using Type = CU64Property ;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<F32        , T>>>{ using Type = CF32Property ;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<F64        , T>>>{ using Type = CF64Property ;};
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<std::string, T>>>{ using Type = CStrProperty ;};
 
-	using RemoveRefPropertyType = std::conditional_t<std::is_reference_v<PropertyType>, std::remove_reference_t<PropertyType>, PropertyType>;
-	using RemovePtrPropertyType = std::conditional_t<std::is_pointer_v<PropertyType>, std::remove_pointer_t<PropertyType>, PropertyType>;
-	static_assert(!std::is_pointer_v<RemoveRefPropertyType>);
-	static_assert(!std::is_pointer_v<RemovePtrPropertyType>);
-	using PropertyMetaClass = std::conditional_t<std::is_reference_v<PropertyType>, std::remove_reference_t<PropertyType>, std::conditional_t<std::is_pointer_v<PropertyType>, std::remove_pointer_t<PropertyType>, PropertyType>>;
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_class_v<T>>> { using Type = CClassProperty; };
 
-	static constexpr bool SIsStatic = !std::is_member_object_pointer_v<P>;
-	static constexpr bool SIsPointer = std::is_pointer_v<PropertyType>;
-
-	constexpr static bool IsStatic() { return SIsStatic; }
-	constexpr static bool IsPointer() { return SIsPointer; }
-
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_reference_v<T>>> {
+	using PointerToType = std::remove_reference_t<T>;
+	using PointerToPropType = typename TMetaProperty<PointerToType>::Type;
+	using Type = std::conditional_t<std::is_base_of_v<OObject, PointerToType>, CObjectPtrProperty, CPtrProperty>;
 };
 
-template <typename OwnerFunction, typename P /*ropertyType*/ = void>
-struct TParameter
-{
-	using ClassType = typename TPropertyTraits<P>::ClassType;
-	using PropertyType = typename TPropertyTraits<P>::PropertyType;
-
-	using RemovePtrPropertyType = std::conditional_t<std::is_pointer_v<PropertyType>, std::remove_pointer_t<PropertyType>, PropertyType>;
-	static_assert(!std::is_pointer_v<RemovePtrPropertyType>);
-
-	using PropertyMetaClass = std::conditional_t<std::is_reference_v<PropertyType>, std::remove_reference_t<PropertyType>, std::conditional_t<std::is_pointer_v<PropertyType>, std::remove_pointer_t<PropertyType>, PropertyType>>;
-
-	static constexpr bool SIsStatic = false;
-	static constexpr bool SIsPointer = std::is_pointer_v<PropertyType>;
-
-	static CMetaProperty* CreateStatic(const std::string& InName, P InProperty, CMetaProperty::OffsetSizeType InOffsetOf = 0, CMetaFunction* InOwnerFunction = nullptr, CController* InController = nullptr)
-	{
-		if (!InController)
-			InController = GetControllerPtr();
-		static CMetaProperty* MetaPropertyPtr = [&]() -> CMetaProperty* {
-			static typename TSelectMetaProperty<PropertyMetaClass>::Type StaticMetaProperty(InName);
-			StaticMetaProperty.SetOwner(InOwnerFunction);
-			StaticMetaProperty.bIsStatic = SIsStatic;
-			StaticMetaProperty.bIsPointer = SIsPointer;
-			StaticMetaProperty.Offset = InOffsetOf;
-			InOwnerFunction->InsertProperty(&StaticMetaProperty);
-			if (auto ClassProperty = StaticMetaProperty.CastTo<CClassProperty>())
-			{
-				InController->GetClassByAfterRegisterClassCallback(typeid(PropertyMetaClass), [ClassProperty](CMetaClass* InPropertyType) {
-					ClassProperty->MetaClass = InPropertyType;
-					});
-			}
-			InController->RegisterMetadata(&StaticMetaProperty);
-			return &StaticMetaProperty;
-		}();
-		return MetaPropertyPtr;
-	}
+template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_pointer_v<T>>>  {
+	using PointerToType = std::remove_pointer_t<T>;
+	using PointerToPropType = typename TMetaProperty<PointerToType>::Type;
+	using Type = std::conditional_t<std::is_base_of_v<OObject, PointerToType>, CObjectPtrProperty, CPtrProperty>;
 };
 
-template <typename F /*unction*/>
-struct TFunction
+template <typename T>struct TMetaProperty<T, std::enable_if_t<TIsTArray<T>::Value>>
 {
-	using FunctionType = F;
-	using ClassType = typename FunctionTraits<FunctionType>::ClassType;
-	using ReturnType = typename FunctionTraits<FunctionType>::ReturnType;
-	using ArgsType = typename FunctionTraits<FunctionType>::ArgsType;
-
-	template <std::size_t I>
-	using TArgType = std::tuple_element_t<I, ArgsType>;
-
-	template <typename T>
-	using ConvertRefToPtrType = std::conditional_t<std::is_reference_v<T>, std::add_pointer_t<std::remove_reference_t<T>>, T>;
-
-	static constexpr bool SIsStatic = std::is_same_v<void, ClassType>;
-	static constexpr bool SIsVoidReturn = std::is_same_v<void, ReturnType>;
-	static constexpr i32 SArgCount = FunctionTraits<FunctionType>::SArgCount;
-
-	template <std::size_t I, typename ThisElement>
-	static void ForEachParameter(CMetaFunction* InFunction, CController* InController, TNull<ThisElement>&& ThisParameter)
-	{
-		TParameter<F, ConvertRefToPtrType<ThisElement>*>::CreateStatic(fmt::format("Parameter{:d}", I), static_cast<ConvertRefToPtrType<ThisElement>*>(nullptr), I, InFunction, InController);
-	}
-
-	template <std::size_t I, typename ThisElement, typename... Elements>
-	static void ForEachParameter(CMetaFunction* InFunction, CController* InController, TNull<ThisElement>&& ThisParameter, TNull<Elements>&&... Parameters)
-	{
-		ForEachParameter<I, ThisElement>(InFunction, InController, std::forward<TNull<ThisElement>>(ThisParameter));
-		ForEachParameter<I + 1, Elements...>(InFunction, InController, std::forward<TNull<Elements>>(Parameters)...);
-	}
-
-	template <std::size_t... I>
-	static void ForEachParameter(CMetaFunction* InFunction, CController* InController, std::index_sequence<I...>)
-	{
-		ForEachParameter<1>(InFunction, InController, TNull<std::tuple_element_t<I, ArgsType>>{}...);
-	}
-
-	static CMetaFunction* CreateStatic(const std::string& InName, F InFunction, CMetaClass* InOwnerClass = nullptr, CController* InController = nullptr)
-	{
-		if (!InController)
-			InController = GetControllerPtr();
-		static CMetaFunction* MetaFunctionPtr = [&]() -> CMetaFunction* {
-			static CMetaFunction StaticMetaFunction(InName);
-			StaticMetaFunction.bIsStatic = SIsStatic;
-			auto RetProp = TParameter<F, ConvertRefToPtrType<ReturnType>*>::CreateStatic("Return", static_cast<ConvertRefToPtrType<ReturnType>*>(nullptr), 0, &StaticMetaFunction, InController);
-			RetProp->bIsReturn = true;
-			ForEachParameter(&StaticMetaFunction, InController, std::make_index_sequence<SArgCount>());
-			if constexpr (SIsStatic)
-			{
-				StaticMetaFunction.FuncPtr = asFunctionPtr(reinterpret_cast<void (*)()>(static_cast<F>(InFunction)));
-			}
-			else
-			{
-				assert(InOwnerClass);
-				InOwnerClass->InsertFunction(&StaticMetaFunction);
-				StaticMetaFunction.FuncPtr = asSMethodPtr<sizeof(void(ClassType::*)())>::Convert(static_cast<F>(InFunction));
-			}
-			InController->RegisterMetadata(&StaticMetaFunction);
-			return &StaticMetaFunction;
-		}();
-		return MetaFunctionPtr;
-	}
+	using ElementType = typename TArrayTraits<T>::ElementType;
+	using ElementPropType = typename TMetaProperty<ElementType>::Type;
+	using Type = CArrayProperty; 
 };
+
+
+template<typename PropertyType>
+void SetStandardProperty(CMetaProperty** OutProperty, const char* InClassName)
+{
+	if constexpr (std::is_reference_v<PropertyType> || std::is_pointer_v<PropertyType>)
+	{
+		GetControllerPtr()->GetClassByAfterRegisterClassCallback(InClassName, [OutProperty] (CMetaClass* InMetaClass) { *OutProperty = InMetaClass->StandardPtrProperty; });
+	}
+	else
+	{
+		GetControllerPtr()->GetClassByAfterRegisterClassCallback(InClassName, [OutProperty] (CMetaClass* InMetaClass) { *OutProperty = InMetaClass->StandardProperty; });
+	}
+}
+
+template<> void SetStandardProperty<Boolean     >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCBoolProperty;}
+template<> void SetStandardProperty<I8          >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCI8Property  ;}
+template<> void SetStandardProperty<I16         >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCI16Property ;}
+template<> void SetStandardProperty<I32         >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCI32Property ;}
+template<> void SetStandardProperty<I64         >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCI64Property ;}
+template<> void SetStandardProperty<U8          >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCU8Property  ;}
+template<> void SetStandardProperty<U16         >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCU16Property ;}
+template<> void SetStandardProperty<U32         >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCU32Property ;}
+template<> void SetStandardProperty<U64         >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCU64Property ;}
+template<> void SetStandardProperty<F32         >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCF32Property ;}
+template<> void SetStandardProperty<F64         >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCF64Property ;}
+template<> void SetStandardProperty<std::string >(CMetaProperty** OutProperty, const char* InClassName) { *OutProperty = &StandardCStrProperty ;}
+
+template<I32 Index>
+struct TParameterIndex {};
+
+template<typename >
+struct TProperty {};
+
+// 通过模板创建一个唯一的静态属性
+template<typename OwnerType, typename PropertyType>
+auto StaticCreateUniqueProperty(CMetadata* InOwner, const std::string& InName, CMetaProperty::OffsetSizeType InOffset, EPropertyFlags InPropertyFlags, const char* InStandardProperty = nullptr)
+{
+	using MetaPropertyType = typename TMetaProperty<PropertyType>::Type;
+	static MetaPropertyType LProperty(InOwner, InName, InOffset, InPropertyFlags);
+	if constexpr (TIsTArray<PropertyType>::Value)
+	{
+		using ElementType = typename TMetaProperty<PropertyType>::ElementType;
+		using ElementPropType = typename TMetaProperty<PropertyType>::ElementPropType;
+		LProperty->ElementProp = SetStandardProperty<ElementType>(InStandardProperty);
+	}
+	if constexpr (std::is_pointer_v<PropertyType> || std::is_reference_v<PropertyType>)
+	{
+		using PointerToType = typename TMetaProperty<PropertyType>::PointerToType;
+		using PointerToPropType = typename TMetaProperty<PropertyType>::PointerToPropType;
+		LProperty->PointerToProp = SetStandardProperty<PointerToType>(InStandardProperty);
+	}
+	return &LProperty;
+}
+
+// 通过模板创建一个唯一的静态属性
+template<typename OwnerType, typename FunctionType>
+auto StaticCreateUniqueFunction(CMetadata* InOwner, const std::string& InName, FunctionType FuncPtr, EPropertyFlags InPropertyFlags)
+{
+	static CMetaFunction LFunction(InOwner, InName, InPropertyFlags);
+	if constexpr (std::is_void_v<OwnerType>)
+	{
+		LFunction.FuncPtr = asFunctionPtr(reinterpret_cast<void (*)()>(FuncPtr));
+	}
+	else
+	{
+		LFunction.FuncPtr = asSMethodPtr<sizeof(void(OwnerType::*)())>::Convert(FuncPtr);
+	}
+	return &LFunction;
+}
+
+//
+//template <typename F /*unction*/>
+//struct TFunction
+//{
+//	using FunctionType = F;
+//	using ClassType = typename FunctionTraits<FunctionType>::ClassType;
+//	using ReturnType = typename FunctionTraits<FunctionType>::ReturnType;
+//	using ArgsType = typename FunctionTraits<FunctionType>::ArgsType;
+//
+//	template <std::size_t I>
+//	using TArgType = std::tuple_element_t<I, ArgsType>;
+//
+//	template <typename T>
+//	using ConvertRefToPtrType = std::conditional_t<std::is_reference_v<T>, std::add_pointer_t<std::remove_reference_t<T>>, T>;
+//
+//	static constexpr bool SIsStatic = std::is_same_v<void, ClassType>;
+//	static constexpr bool SIsVoidReturn = std::is_same_v<void, ReturnType>;
+//	static constexpr i32 SArgCount = FunctionTraits<FunctionType>::SArgCount;
+//
+//	template <std::size_t I, typename ThisElement>
+//	static void ForEachParameter(CMetaFunction* InFunction, CController* InController, TNull<ThisElement>&& ThisParameter)
+//	{
+//		TParameter<F, ConvertRefToPtrType<ThisElement>*>::CreateStatic(fmt::format("Parameter{:d}", I), static_cast<ConvertRefToPtrType<ThisElement>*>(nullptr), I, InFunction, InController);
+//	}
+//
+//	template <std::size_t I, typename ThisElement, typename... Elements>
+//	static void ForEachParameter(CMetaFunction* InFunction, CController* InController, TNull<ThisElement>&& ThisParameter, TNull<Elements>&&... Parameters)
+//	{
+//		ForEachParameter<I, ThisElement>(InFunction, InController, std::forward<TNull<ThisElement>>(ThisParameter));
+//		ForEachParameter<I + 1, Elements...>(InFunction, InController, std::forward<TNull<Elements>>(Parameters)...);
+//	}
+//
+//	template <std::size_t... I>
+//	static void ForEachParameter(CMetaFunction* InFunction, CController* InController, std::index_sequence<I...>)
+//	{
+//		ForEachParameter<1>(InFunction, InController, TNull<std::tuple_element_t<I, ArgsType>>{}...);
+//	}
+//
+//	static CMetaFunction* CreateStatic(const std::string& InName, F InFunction, CMetaClass* InOwnerClass = nullptr, CController* InController = nullptr)
+//	{
+//		if (!InController)
+//			InController = GetControllerPtr();
+//		static CMetaFunction* MetaFunctionPtr = [&]() -> CMetaFunction* {
+//			static CMetaFunction StaticMetaFunction(InName);
+//			StaticMetaFunction.bIsStatic = SIsStatic;
+//			auto RetProp = TParameter<F, ConvertRefToPtrType<ReturnType>*>::CreateStatic("Return", static_cast<ConvertRefToPtrType<ReturnType>*>(nullptr), 0, &StaticMetaFunction, InController);
+//			RetProp->bIsReturn = true;
+//			ForEachParameter(&StaticMetaFunction, InController, std::make_index_sequence<SArgCount>());
+//			if constexpr (SIsStatic)
+//			{
+//				StaticMetaFunction.FuncPtr = asFunctionPtr(reinterpret_cast<void (*)()>(static_cast<F>(InFunction)));
+//			}
+//			else
+//			{
+//				assert(InOwnerClass);
+//				InOwnerClass->InsertFunction(&StaticMetaFunction);
+//				StaticMetaFunction.FuncPtr = asSMethodPtr<sizeof(void(ClassType::*)())>::Convert(static_cast<F>(InFunction));
+//			}
+//			InController->RegisterMetadata(&StaticMetaFunction);
+//			return &StaticMetaFunction;
+//		}();
+//		return MetaFunctionPtr;
+//	}
+//};
+//
+//template <typename T>
+//struct TPropertyTraitsBase
+//{
+//	using ClassType = void;
+//	using PropertyType = std::remove_pointer_t<T>;
+//	static constexpr bool SIsStatic = true;
+//	static constexpr bool SIsPointer = std::is_pointer_v<PropertyType>;
+//	static constexpr bool SIsReference = false; //无法检测到全局变量的引用
+//};
+//
+//template <typename C, typename T>
+//struct TPropertyTraitsBase<T C::*>
+//{
+//	using ClassType = C;
+//	using PropertyType = T;
+//	static constexpr bool SIsStatic = false;
+//	static constexpr bool SIsPointer = std::is_pointer_v<PropertyType>;
+//	static constexpr bool SIsReference = std::is_reference_v<PropertyType>;
+//
+//};
+//
+//template <typename T>
+//struct TPropertyTraits : public TPropertyTraitsBase<T>
+//{
+//};
+//
 
 RTCXX_NAMESPACE_END

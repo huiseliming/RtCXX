@@ -20,12 +20,11 @@ enum EPropertyFlags : U64
 	PF_Param		   = 0x0000000000000001, // 标识此属性是函数的参数
 	PF_OutParam		   = 0x0000000000000002, // 标识此属性是函数的输出参数
 	PF_ReturnParam	   = 0x0000000000000004, // 标识此属性是C++函数的返回值
-	PF_ReferenceParm   = 0x0000000000000008, // 标识此属性是函数通过应用传递的参数,其属性类型为CPtrProperty
+	PF_ReferenceParam  = 0x0000000000000008, // 标识此属性是函数通过应用传递的参数,其属性类型为CPtrProperty
 	PF_ZeroConstructor = 0x0000000000000010, // 标识此属性不需要构造(可以直接进行内存拷贝)
 	PF_NoDestructor	   = 0x0000000000000020, // 标识此属性不需要析构(可以直接进行内存拷贝)
-
 	PF_Global		   = 0x8000000000000000, // 标识一个全局属性
-	PF_AllFlags = 0xFFFFFFFFFFFFFFFF
+	PF_AllFlags		   = 0xFFFFFFFFFFFFFFFF
 };
 
 DECL_ENUM_FLAGS(EPropertyFlags)
@@ -49,7 +48,8 @@ public:
 		, PropertyFlags(InPropertyFlags)
 	{
 	}
-public:	
+
+public:
 	EPropertyFlags PropertyFlags;
 	FORCEINLINE EPropertyFlags GetPropertyFlags() { return PropertyFlags; }
 	FORCEINLINE void SetPropertyFlags(EPropertyFlags NewFlags) { PropertyFlags |= NewFlags; }
@@ -59,7 +59,7 @@ public:
 
 public:
 	std::string GetScriptDeclaration();
-	//FORCEINLINE bool IsPointer() { return GetCastFlags() & MCF_CPtrProperty; }
+	// FORCEINLINE bool IsPointer() { return GetCastFlags() & MCF_CPtrProperty; }
 	FORCEINLINE auto GetValuePtr(void* InContainerPtr) const -> void* { return static_cast<U8*>(InContainerPtr) + Offset; }
 	FORCEINLINE auto GetValuePtr(const void* InContainerPtr) const -> const void* { return static_cast<const U8*>(InContainerPtr) + Offset; }
 	template <typename T>
@@ -273,7 +273,6 @@ class RTCXX_API CObjectPtrProperty : public CPtrProperty
 	DECLARE_METADATA_CLASS(CObjectPtrProperty, CPtrProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CObjectPtrProperty, CPtrProperty)
 public:
-
 };
 
 class RTCXX_API CArrayProperty : public CMetaProperty
@@ -282,8 +281,8 @@ class RTCXX_API CArrayProperty : public CMetaProperty
 	DECLARE_PROPERTY_CONSTRUCTOR(CArrayProperty, CMetaProperty)
 public:
 	CMetaProperty* ElementProp;
-
 };
+
 
 RTCXX_API extern CBoolProperty StandardCBoolProperty;
 RTCXX_API extern CNumericProperty StandardCNumericProperty;
@@ -298,10 +297,10 @@ RTCXX_API extern CU64Property StandardCU64Property;
 RTCXX_API extern CF32Property StandardCF32Property;
 RTCXX_API extern CF64Property StandardCF64Property;
 RTCXX_API extern CStrProperty StandardCStrProperty;
-//RTCXX_API extern CClassProperty StandardCClassProperty;
-//RTCXX_API extern CObjectProperty StandardCObjectProperty;
-//RTCXX_API extern CObjectPtrProperty StandardCObjectPtrProperty;
-//RTCXX_API extern CArrayProperty StandardCArrayProperty;
+// RTCXX_API extern CClassProperty StandardCClassProperty;
+// RTCXX_API extern CObjectProperty StandardCObjectProperty;
+// RTCXX_API extern CObjectPtrProperty StandardCObjectPtrProperty;
+// RTCXX_API extern CArrayProperty StandardCArrayProperty;
 
 RTCXX_API extern CPtrProperty StandardPtrCBoolProperty;
 RTCXX_API extern CPtrProperty StandardPtrCNumericProperty;
@@ -316,111 +315,111 @@ RTCXX_API extern CPtrProperty StandardPtrCU64Property;
 RTCXX_API extern CPtrProperty StandardPtrCF32Property;
 RTCXX_API extern CPtrProperty StandardPtrCF64Property;
 RTCXX_API extern CPtrProperty StandardPtrCStrProperty;
-//RTCXX_API extern CClassProperty StandardPtrCClassProperty;
-//RTCXX_API extern CObjectProperty StandardPtrCObjectProperty;
-//RTCXX_API extern CObjectPtrProperty StandardPtrCObjectPtrProperty;
-//RTCXX_API extern CArrayProperty StandardPtrCArrayProperty;
+// RTCXX_API extern CClassProperty StandardPtrCClassProperty;
+// RTCXX_API extern CObjectProperty StandardPtrCObjectProperty;
+// RTCXX_API extern CObjectPtrProperty StandardPtrCObjectPtrProperty;
+// RTCXX_API extern CArrayProperty StandardPtrCArrayProperty;
 
-template <typename T, class Enabled = void>
-struct TSelectMetaProperty
-{
-	using Type = void;
-};
-
-template <>
-struct TSelectMetaProperty<void>
-{
-	using Type = CMetaProperty;
-};
-
-template <>
-struct TSelectMetaProperty<bool>
-{
-	using Type = CBoolProperty;
-};
-
-template <>
-struct TSelectMetaProperty<I8>
-{
-	using Type = CI8Property;
-};
-
-template <>
-struct TSelectMetaProperty<I16>
-{
-	using Type = CI16Property;
-};
-
-template <>
-struct TSelectMetaProperty<I32>
-{
-	using Type = CI32Property;
-};
-
-template <>
-struct TSelectMetaProperty<I64>
-{
-	using Type = CI64Property;
-};
-
-template <>
-struct TSelectMetaProperty<U8>
-{
-	using Type = CU8Property;
-};
-
-template <>
-struct TSelectMetaProperty<U16>
-{
-	using Type = CU16Property;
-};
-
-template <>
-struct TSelectMetaProperty<U32>
-{
-	using Type = CU32Property;
-};
-
-template <>
-struct TSelectMetaProperty<U64>
-{
-	using Type = CU64Property;
-};
-
-template <>
-struct TSelectMetaProperty<F32>
-{
-	using Type = CF32Property;
-};
-
-template <>
-struct TSelectMetaProperty<F64>
-{
-	using Type = CF64Property;
-};
-
-template <>
-struct TSelectMetaProperty<std::string>
-{
-	using Type = CStrProperty;
-};
-
-//template <typename T>
-//struct TSelectMetaProperty<T, std::enable_if_t<std::is_base_of_v<OObject, T>>>
+//template <typename T, class Enabled = void>
+//struct TMetaProperty
 //{
-//	using Type = CObjectProperty;
+//	using Type = void;
 //};
-
-template <typename T>
-struct TSelectMetaProperty<T, std::enable_if_t<std::is_pointer_v<T> && std::is_base_of_v<OObject, std::remove_pointer_t<T>>>>
-{
-	using Type = CObjectPtrProperty;
-};
-
-template <typename T>
-struct TSelectMetaProperty<T, std::enable_if_t<std::is_class_v<T>>>
-{
-	using Type = CClassProperty;
-};
+//
+//template <>
+//struct TMetaProperty<void>
+//{
+//	using Type = CMetaProperty;
+//};
+//
+//template <>
+//struct TMetaProperty<bool>
+//{
+//	using Type = CBoolProperty;
+//};
+//
+//template <>
+//struct TMetaProperty<I8>
+//{
+//	using Type = CI8Property;
+//};
+//
+//template <>
+//struct TMetaProperty<I16>
+//{
+//	using Type = CI16Property;
+//};
+//
+//template <>
+//struct TMetaProperty<I32>
+//{
+//	using Type = CI32Property;
+//};
+//
+//template <>
+//struct TMetaProperty<I64>
+//{
+//	using Type = CI64Property;
+//};
+//
+//template <>
+//struct TMetaProperty<U8>
+//{
+//	using Type = CU8Property;
+//};
+//
+//template <>
+//struct TMetaProperty<U16>
+//{
+//	using Type = CU16Property;
+//};
+//
+//template <>
+//struct TMetaProperty<U32>
+//{
+//	using Type = CU32Property;
+//};
+//
+//template <>
+//struct TMetaProperty<U64>
+//{
+//	using Type = CU64Property;
+//};
+//
+//template <>
+//struct TMetaProperty<F32>
+//{
+//	using Type = CF32Property;
+//};
+//
+//template <>
+//struct TMetaProperty<F64>
+//{
+//	using Type = CF64Property;
+//};
+//
+//template <>
+//struct TMetaProperty<std::string>
+//{
+//	using Type = CStrProperty;
+//};
+//
+//// template <typename T>
+//// struct TMetaProperty<T, std::enable_if_t<std::is_base_of_v<OObject, T>>>
+////{
+////	using Type = CObjectProperty;
+//// };
+//
+//template <typename T>
+//struct TMetaProperty<T, std::enable_if_t<std::is_pointer_v<T> && std::is_base_of_v<OObject, std::remove_pointer_t<T>>>>
+//{
+//	using Type = CObjectPtrProperty;
+//};
+//
+//template <typename T>
+//struct TMetaProperty<T, std::enable_if_t<std::is_class_v<T>>>
+//{
+//	using Type = CClassProperty;
+//};
 
 RTCXX_NAMESPACE_END

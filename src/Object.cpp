@@ -55,10 +55,10 @@ namespace ObjectInternals
 			CMetaProperty* PropLink = MetaClass->PropertyLink;
 			while (PropLink)
 			{
-				if (PropLink->GetCastFlags() | MCF_CObjectProperty)
-				{
+				//if (PropLink->GetCastFlags() | MCF_CObjectProperty)
+				//{
 
-				}
+				//}
 				PropLink = PropLink->PropertyLinkNext;
 			}
 		}
