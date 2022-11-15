@@ -11,20 +11,30 @@ enum EClassFlags : U64
 };
 DECL_ENUM_FLAGS(EClassFlags)
 
-class RTCXX_API CMetaClass : public CMetadata
+
+class RTCXX_API CMetaClass : public CMetaStruct
 {
-	DECLARE_METADATA_CLASS(CMetaClass, CMetadata)
+	DECLARE_METADATA_CLASS(CMetaClass, CMetaStruct)
 public:
 	FORCEINLINE CMetaClass(CMetadata* InOwner, const std::string& InName, EClassFlags InClassFlags)
-		: CMetadata(InOwner, InName, CMetaClass::StaticMetadataClass())
+		: CMetaStruct(InOwner, InName, CMetaClass::StaticMetadataClass())
 		, ClassFlags(InClassFlags)
 	{
 	}
 	FORCEINLINE CMetaClass(CMetadata* InOwner, const std::string& InName, EClassFlags InClassFlags, CMetadataClass* InMetadataClass)
-		: CMetadata(InOwner, InName, InMetadataClass)
+		: CMetaStruct(InOwner, InName, InMetadataClass)
 		, ClassFlags(InClassFlags)
 	{
 	}
+public:
+	void InsertFunction(CMetaFunction* InFunction);
+	CMetaFunction* FunctionLink;
+
+	void InsertDerivedClass(CMetaClass* InClass);
+	CMetaClass* DerivedClassLink;
+
+	//同级属性链
+	CMetaClass* DerivedClassLinkNext;
 
 public:
 	EClassFlags ClassFlags;
@@ -35,9 +45,6 @@ public:
 	FORCEINLINE bool HasAllClassFlags(EClassFlags FlagsToCheck) const { return ((ClassFlags & FlagsToCheck) == FlagsToCheck); }
 
 	asUINT ConvertToScriptEngineTypeTraits();
-	void InsertProperty(CMetaProperty* InProperty);
-	void InsertFunction(CMetaFunction* InFunction);
-	void InsertDerivedClass(CMetaClass* InClass);
 
 public:
 	virtual void RegisterToScriptEngine(asIScriptEngine* ScriptEngine) {}
@@ -96,13 +103,7 @@ public:
 	//	return false;
 	// }
 
-	CMetaClass* DerivedClassLinkNext;
-
 	CMetaClass* BaseClass;
-	CMetaClass* DerivedClassLink;
-
-	CMetaProperty* PropertyLink;
-	CMetaFunction* FunctionLink;
 
 
 	std::type_index TypeIndex = typeid(FNull);

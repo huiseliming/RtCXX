@@ -10,31 +10,32 @@ enum EMetadataCastFlags : U32
 {
 	MCF_None			   = 0x00000000,
 	MCF_CMetadata		   = 0x00000001,
-	MCF_CMetaFunction	   = 0x00000002,
+	MCF_CMetaStruct        = 0x00000002,
 	MCF_CMetaClass		   = 0x00000004,
-	MCF_CMetaProperty	   = 0x00000008,
-	MCF_CBoolProperty	   = 0x00000010,
-	MCF_CNumericProperty   = 0x00000020,
-	MCF_CI8Property		   = 0x00000040,
-	MCF_CI16Property	   = 0x00000080,
-	MCF_CI32Property	   = 0x00000100,
-	MCF_CI64Property	   = 0x00000200,
-	MCF_CU8Property		   = 0x00000400,
-	MCF_CU16Property	   = 0x00000800,
-	MCF_CU32Property	   = 0x00001000,
-	MCF_CU64Property	   = 0x00002000,
-	MCF_CF32Property	   = 0x00004000,
-	MCF_CF64Property	   = 0x00008000,
-	MCF_CStrProperty	   = 0x00010000,
-	MCF_CClassProperty	   = 0x00020000,
-	MCF_CObjectProperty	   = 0x00040000,
-	MCF_CPtrProperty	   = 0x00080000,
-	MCF_CObjectPtrProperty = 0x00100000,
-	MCF_CArrayProperty	   = 0x00200000,
+	MCF_CMetaFunction	   = 0x00000008,
+	MCF_CMetaProperty	   = 0x00000010,
+	MCF_CBoolProperty	   = 0x00000020,
+	MCF_CNumericProperty   = 0x00000040,
+	MCF_CI8Property		   = 0x00000080,
+	MCF_CI16Property	   = 0x00000100,
+	MCF_CI32Property	   = 0x00000200,
+	MCF_CI64Property	   = 0x00000400,
+	MCF_CU8Property		   = 0x00000800,
+	MCF_CU16Property	   = 0x00001000,
+	MCF_CU32Property	   = 0x00002000,
+	MCF_CU64Property	   = 0x00004000,
+	MCF_CF32Property	   = 0x00008000,
+	MCF_CF64Property	   = 0x00010000,
+	MCF_CStrProperty	   = 0x00020000,
+	MCF_CClassProperty	   = 0x00040000,
+	MCF_CObjectProperty	   = 0x00080000,
+	MCF_CPtrProperty	   = 0x00100000,
+	MCF_CObjectPtrProperty = 0x00200000,
+	MCF_CArrayProperty	   = 0x00400000,
 };
 DECL_ENUM_FLAGS(EMetadataCastFlags);
 
-class CMetadataClass
+class RTCXX_API CMetadataClass
 {
 public:
 	CMetadataClass(EMetadataCastFlags InCastFlag, EMetadataCastFlags InCastFlags)

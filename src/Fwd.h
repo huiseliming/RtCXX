@@ -58,17 +58,17 @@
 	#define PRAGMA_GCC_DIAGNOSTIC_POP()
 	#define PRAGMA_MSVC_WARNING_PUSH()
 	#define PRAGMA_MSVC_WARNING_DISABLE(X)
-	#define PRAGMA_MSVC_WARNING_POP()
+	#define PRAGMA_MSVC_WARNING_POP() 
 #endif
-
-//
+ 
+// 
 #ifdef ____RTCXX_GENERATOR____
-	#define RMETADATA(...) [[clang::annotate("RtCXX" __VA_OPT__(", ") #__VA_ARGS__)]] //__attribute__((annotate("Metadata" __VA_OPT__(",") #__VA_ARGS__)))
-	#define RCLASS(...)	   RMETADATA(__VA_ARGS__)
-	#define RSTRUCT(...)   RMETADATA(__VA_ARGS__)
-	#define RENUM(...)	   RMETADATA(__VA_ARGS__)
-	#define RPROPERTY(...) RMETADATA(__VA_ARGS__)
-	#define RFUNCTION(...) RMETADATA(__VA_ARGS__)
+	//#define RMETADATA(NAME) [[clang::annotate("Metadata" __VA_OPT__(", ") #__VA_ARGS__)]] //__attribute__((annotate("Metadata" __VA_OPT__(",") #__VA_ARGS__)))
+	#define RCLASS(...)	    [[clang::annotate("Class"    __VA_OPT__(", ") #__VA_ARGS__)]]
+	#define RSTRUCT(...)    [[clang::annotate("Struct"   __VA_OPT__(", ") #__VA_ARGS__)]]
+	#define RENUM(...)	    [[clang::annotate("Enum"     __VA_OPT__(", ") #__VA_ARGS__)]]
+	#define RPROPERTY(...)  [[clang::annotate("Property" __VA_OPT__(", ") #__VA_ARGS__)]]
+	#define RFUNCTION(...)  [[clang::annotate("Function" __VA_OPT__(", ") #__VA_ARGS__)]]
 #else
 	#define RCLASS(...)
 	#define RENUM(...)
@@ -147,6 +147,7 @@ class CMetadata;
 class CMetaProperty;
 class CMetaFunction;
 class CMetaClass;
+
 RTCXX_NAMESPACE_END
 
 class OObject;

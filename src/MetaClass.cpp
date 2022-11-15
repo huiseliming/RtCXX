@@ -21,17 +21,6 @@ asUINT CMetaClass::ConvertToScriptEngineTypeTraits()
 	return 0;
 }
 
-void CMetaClass::InsertProperty(CMetaProperty* InProperty)
-{
-	if (!PropertyLink)
-	{
-		PropertyLink = InProperty;
-		return;
-	}
-	InProperty->PropertyLinkNext = PropertyLink;
-	PropertyLink = InProperty;
-}
-
 void CMetaClass::InsertFunction(CMetaFunction* InFunction)
 {
 	if (!FunctionLink)

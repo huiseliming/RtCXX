@@ -44,15 +44,4 @@ std::string CMetaFunction::GetScriptDeclaration()
     return Declaration;
 }
 
-void CMetaFunction::InsertProperty(CMetaProperty* InMetaProperty)
-{
-	if (!PropertyLink)
-	{
-		PropertyLink = InMetaProperty;
-		return;
-	}
-	InMetaProperty->PropertyLinkNext = PropertyLink;
-	PropertyLink = InMetaProperty;
-}
-
 RTCXX_NAMESPACE_END

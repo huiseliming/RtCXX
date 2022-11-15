@@ -1,5 +1,5 @@
 #pragma once
-#include "Metadata.h"
+#include "MetaStruct.h"
 #include "MetaProperty.h"
 #include <angelscript.h>
 
@@ -13,20 +13,23 @@ enum EFunctionFlags : U64
 };
 DECL_ENUM_FLAGS(EFunctionFlags)
 
-class RTCXX_API CMetaFunction : public CMetadata
+class RTCXX_API CMetaFunction : public CMetaStruct
 {
-	DECLARE_METADATA_CLASS(CMetaFunction, CMetadata)
+	DECLARE_METADATA_CLASS(CMetaFunction, CMetaStruct)
 public:
 	FORCEINLINE CMetaFunction(CMetadata* InOwner, const std::string& InName, EFunctionFlags InFunctionFlags)
-		: CMetadata(InOwner, InName, CMetaFunction::StaticMetadataClass())
+		: CMetaStruct(InOwner, InName, CMetaFunction::StaticMetadataClass())
 		, FunctionFlags(InFunctionFlags)
 	{
 	}
 	FORCEINLINE CMetaFunction(CMetadata* InOwner, const std::string& InName, EFunctionFlags InFunctionFlags, CMetadataClass* InMetadataClass)
-		: CMetadata(InOwner, InName, InMetadataClass)
+		: CMetaStruct(InOwner, InName, InMetadataClass)
 		, FunctionFlags(InFunctionFlags)
 	{
 	}
+
+	//同级属性链
+	CMetaFunction* FunctionLinkNext = nullptr;
 
 public:
 	EFunctionFlags FunctionFlags;
@@ -38,12 +41,8 @@ public:
 
 public:
 	std::string GetScriptDeclaration();
-	void InsertProperty(CMetaProperty* InMetaProperty);
 
 public:
-	// 用于组成快速遍历的链
-	CMetaFunction* FunctionLinkNext = nullptr;
-	CMetaProperty* PropertyLink		= nullptr;
 	asSFuncPtr FuncPtr;
 	bool bIsStatic : 1;
 

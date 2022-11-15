@@ -48,6 +48,9 @@ public:
 		, PropertyFlags(InPropertyFlags)
 	{
 	}
+public:
+	//同级属性链
+	CMetaProperty* PropertyLinkNext = nullptr;
 
 public:
 	EPropertyFlags PropertyFlags;
@@ -71,8 +74,6 @@ public:
 	virtual void CopyValue(void* Dest, void const* Src) const { ; }
 	virtual void MoveValue(void* Dest, void const* Src) const { ; }
 
-	// 用于组成快速遍历的链
-	CMetaProperty* PropertyLinkNext = nullptr;
 	// CMetaClass* MetaClass = nullptr;
 	OffsetSizeType Offset = 0;
 

@@ -245,11 +245,11 @@ namespace ObjectInternals
 		std::queue<CGarbageCollector*> AvailableGarbageCollectorQueue;
 	};
 
-}
-
+} 
+ 
 RTCXX_NAMESPACE_END
 
-class RCLASS() RTCXX_API OObject
+class RCLASS(a = "\" \0 \\", k = 22,  b = 3.0f, d = 5.0f) RTCXX_API OObject
 {
 	GENERATED_BODY();
 
