@@ -18,7 +18,7 @@ class RTCXX_API CMetaFunction : public CMetadata
 	DECLARE_METADATA_CLASS(CMetaFunction, CMetadata)
 public:
 	FORCEINLINE CMetaFunction(CMetadata* InOwner, const std::string& InName, EFunctionFlags InFunctionFlags)
-		: CMetadata(InOwner, InName, CMetaProperty::StaticMetadataClass())
+		: CMetadata(InOwner, InName, CMetaFunction::StaticMetadataClass())
 		, FunctionFlags(InFunctionFlags)
 	{
 	}

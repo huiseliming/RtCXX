@@ -265,7 +265,7 @@ public:
 	}
 
 	RtCXX::CMetaClass* GetClass() { return ObjectType; }
-
+	 
 protected: 
 	void SetObjectType(RtCXX::CMetaClass* type) { ObjectType = type; }
 	RFUNCTION()

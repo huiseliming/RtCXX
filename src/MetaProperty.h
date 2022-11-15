@@ -263,7 +263,10 @@ class RTCXX_API CPtrProperty : public CMetaProperty
 	DECLARE_METADATA_CLASS(CPtrProperty, CMetaProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CPtrProperty, CMetaProperty)
 public:
-	std::string GetScriptTypeDecl() override { return PointerToProp->GetScriptTypeDecl() + "&"; }
+	std::string GetScriptTypeDecl() override { 
+		std::string PointerToScriptTypeDecl = PointerToProp->GetScriptTypeDecl();
+		return PointerToScriptTypeDecl + "&";
+	}
 
 	CMetaProperty* PointerToProp;
 };
@@ -277,7 +280,7 @@ public:
 
 class RTCXX_API CArrayProperty : public CMetaProperty
 {
-	DECLARE_METADATA_CLASS(CArrayProperty, CPtrProperty)
+	DECLARE_METADATA_CLASS(CArrayProperty, CMetaProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CArrayProperty, CMetaProperty)
 public:
 	CMetaProperty* ElementProp;

@@ -43,5 +43,16 @@ void CMetaClass::InsertFunction(CMetaFunction* InFunction)
 	FunctionLink = InFunction;
 }
 
+void CMetaClass::InsertDerivedClass(CMetaClass* InClass)
+{
+	if (!DerivedClassLink)
+	{
+		DerivedClassLink = InClass;
+		return;
+	}
+	InClass->DerivedClassLinkNext = DerivedClassLink;
+	DerivedClassLink = InClass;
+}
+
 RTCXX_NAMESPACE_END
 

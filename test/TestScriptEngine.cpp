@@ -1,14 +1,14 @@
 #include "TestScriptEngine.h"
 using namespace RtCXX;
 
-//auto Prop = TProperty<OApplication, decltype(&OApplication::ApplicationName)>::CreateStatic("ApplicationName", &OApplication::ApplicationName, offsetof(OApplication, ApplicationName), OApplication::SelfClass);
-//auto Func = TFunction<decltype(&OApplication::MainLoop)>::CreateStatic("MainLoop", &OApplication::MainLoop, OApplication::SelfClass);
+//auto Prop = TProperty<OApplication, decltype(&OApplication::ApplicationName)>::CreateStatic("ApplicationName", &OApplication::ApplicationName, offsetof(OApplication, ApplicationName), OApplication::GVar_StaticClass);
+//auto Func = TFunction<decltype(&OApplication::MainLoop)>::CreateStatic("MainLoop", &OApplication::MainLoop, OApplication::GVar_StaticClass);
 
-//CMetaClass* OApplication::SelfClass = TClass<OApplication>::CreateStatic("OApplication");
+//CMetaClass* OApplication::GVar_StaticClass = TClass<OApplication>::CreateStatic("OApplication");
 TEST_CASE("TestScriptEngine", "[Class]")
 {
-	//auto Prop = TProperty<OApplication, decltype(&OApplication::ApplicationName)>::CreateStatic("ApplicationName", &OApplication::ApplicationName, offsetof(OApplication, ApplicationName), OApplication::SelfClass);
-	//auto Func = TFunction<decltype(&OApplication::MainLoop)>::CreateStatic("MainLoop", &OApplication::MainLoop, OApplication::SelfClass);
+	//auto Prop = TProperty<OApplication, decltype(&OApplication::ApplicationName)>::CreateStatic("ApplicationName", &OApplication::ApplicationName, offsetof(OApplication, ApplicationName), OApplication::GVar_StaticClass);
+	//auto Func = TFunction<decltype(&OApplication::MainLoop)>::CreateStatic("MainLoop", &OApplication::MainLoop, OApplication::GVar_StaticClass);
 	auto Prop = GetControllerPtr()->FindMetadataAs<CMetaProperty>("OApplication::ApplicationName");
 	auto Func = GetControllerPtr()->FindMetadataAs<CMetaFunction>("OApplication::MainLoop"); 
 
@@ -24,7 +24,7 @@ TEST_CASE("TestScriptEngine", "[Class]")
 		double delta_seconds = 1234.f;
 		r = Context->SetArgAddress(0, &app2); assert(r >= 0);
 		r = Context->SetArgAddress(1, &delta_seconds); assert(r >= 0);
-		r = Context->SetArgObject(1, &delta_seconds); assert(r >= 0);
+		//r = Context->SetArgObject(1, &delta_seconds); assert(r >= 0);
 		//r = Context->SetArgDouble(0, 123); assert(r >= 0);
 		r = Context->SetObject(&app); assert(r >= 0);
 		r = Context->Execute(); assert(r >= 0);
@@ -39,23 +39,23 @@ TEST_CASE("TestScriptEngine", "[Function]")
 
 TEST_CASE("TestScriptEngine", "[Property]")
 {
-	REQUIRE(CastCheckCastRanges(DerivedABA::SelfClass, BaseA::SelfClass));
-	REQUIRE(CastCheckCastRanges(DerivedABA::SelfClass, DerivedAB::SelfClass));
+	REQUIRE(CastCheckCastRanges(DerivedABA::GVar_StaticClass, BaseA::GVar_StaticClass));
+	REQUIRE(CastCheckCastRanges(DerivedABA::GVar_StaticClass, DerivedAB::GVar_StaticClass));
 
-	REQUIRE(CastCheckCastRanges(DerivedAAB::SelfClass, DerivedAA::SelfClass));
-	REQUIRE(CastCheckCastRanges(DerivedAAB::SelfClass, BaseA::SelfClass));
+	REQUIRE(CastCheckCastRanges(DerivedAAB::GVar_StaticClass, DerivedAA::GVar_StaticClass));
+	REQUIRE(CastCheckCastRanges(DerivedAAB::GVar_StaticClass, BaseA::GVar_StaticClass));
 
-	REQUIRE(CastCheckCastRanges(DerivedAAA::SelfClass, BaseA::SelfClass));
-	REQUIRE(CastCheckCastRanges(DerivedAAA::SelfClass, DerivedAA::SelfClass));
+	REQUIRE(CastCheckCastRanges(DerivedAAA::GVar_StaticClass, BaseA::GVar_StaticClass));
+	REQUIRE(CastCheckCastRanges(DerivedAAA::GVar_StaticClass, DerivedAA::GVar_StaticClass));
 
-	REQUIRE(CastCheckCastRanges(DerivedAB::SelfClass, BaseA::SelfClass));
-	REQUIRE(CastCheckCastRanges(DerivedAA::SelfClass, BaseA::SelfClass));
+	REQUIRE(CastCheckCastRanges(DerivedAB::GVar_StaticClass, BaseA::GVar_StaticClass));
+	REQUIRE(CastCheckCastRanges(DerivedAA::GVar_StaticClass, BaseA::GVar_StaticClass));
 
 
-	REQUIRE(!CastCheckCastRanges(DerivedABA::SelfClass, DerivedAAB::SelfClass));
-	REQUIRE(!CastCheckCastRanges(DerivedAB::SelfClass, DerivedAAA::SelfClass));
-	REQUIRE(!CastCheckCastRanges(DerivedAA::SelfClass, DerivedAB::SelfClass));
-	REQUIRE(!CastCheckCastRanges(DerivedAA::SelfClass, DerivedABA::SelfClass));
-	REQUIRE(!CastCheckCastRanges(DerivedAB::SelfClass, DerivedAAA::SelfClass));
-	REQUIRE(!CastCheckCastRanges(DerivedAAA::SelfClass, DerivedAB::SelfClass));
+	REQUIRE(!CastCheckCastRanges(DerivedABA::GVar_StaticClass, DerivedAAB::GVar_StaticClass));
+	REQUIRE(!CastCheckCastRanges(DerivedAB::GVar_StaticClass, DerivedAAA::GVar_StaticClass));
+	REQUIRE(!CastCheckCastRanges(DerivedAA::GVar_StaticClass, DerivedAB::GVar_StaticClass));
+	REQUIRE(!CastCheckCastRanges(DerivedAA::GVar_StaticClass, DerivedABA::GVar_StaticClass));
+	REQUIRE(!CastCheckCastRanges(DerivedAB::GVar_StaticClass, DerivedAAA::GVar_StaticClass));
+	REQUIRE(!CastCheckCastRanges(DerivedAAA::GVar_StaticClass, DerivedAB::GVar_StaticClass));
 }

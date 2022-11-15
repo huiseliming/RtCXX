@@ -14,7 +14,7 @@ std::string CMetaFunction::GetScriptDeclaration()
 
 	while (PropertyLinkIt)
 	{
-		if (PropertyLinkIt->bIsReturn)
+		if (PropertyLinkIt->HasAnyPropertyFlags(PF_ReturnParam))
 		{
 			DeclarationReturn = PropertyLinkIt->GetScriptTypeDecl();
 		}

@@ -11,93 +11,96 @@
 #define THROW_STD_EXCEPTION() throw std::exception(fmt::format("file: {:s}({:d}): `{:s}`", __FILE__, __LINE__, __FUNCTION__).c_str());
 
 #define RTCXX_NAMESPACE_BEGIN \
-    namespace RtCXX           \
-    {
+	namespace RtCXX           \
+	{
 
 #define RTCXX_NAMESPACE_END \
-    }
+	}
 
 #define STRINGIFY(X) #X
 #define TO_STRING(x) STRINGIFY(x)
 
 #define SYMBOL_STRING_CAT_IMPL(A, B) A##B
-#define SYMBOL_STRING_CAT(A, B)      SYMBOL_STRING_CAT_IMPL(A, B)
+#define SYMBOL_STRING_CAT(A, B)		 SYMBOL_STRING_CAT_IMPL(A, B)
 
-#define FORCEINLINE   __forceinline        /* Force code to be inline */
+#define FORCEINLINE	  __forceinline		   /* Force code to be inline */
 #define FORCENOINLINE __declspec(noinline) /* Force code to NOT be inline */
 
 #define DECL_ENUM_FLAGS(Enum)                                                                                                                                                          \
-    inline Enum& operator|=(Enum& LHS, Enum RHS) { return LHS = static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) | static_cast<std::underlying_type_t<Enum>>(RHS)); }  \
-    inline Enum& operator&=(Enum& LHS, Enum RHS) { return LHS = static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) & static_cast<std::underlying_type_t<Enum>>(RHS)); }  \
-    inline Enum& operator^=(Enum& LHS, Enum RHS) { return LHS = static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) ^ static_cast<std::underlying_type_t<Enum>>(RHS)); }  \
-    inline constexpr Enum operator|(Enum LHS, Enum RHS) { return static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) | static_cast<std::underlying_type_t<Enum>>(RHS)); } \
-    inline constexpr Enum operator&(Enum LHS, Enum RHS) { return static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) & static_cast<std::underlying_type_t<Enum>>(RHS)); } \
-    inline constexpr Enum operator^(Enum LHS, Enum RHS) { return static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) ^ static_cast<std::underlying_type_t<Enum>>(RHS)); } \
-    inline constexpr bool operator!(Enum E) { return !static_cast<std::underlying_type_t<Enum>>(E); }                                                                                  \
-    inline constexpr Enum operator~(Enum E) { return static_cast<Enum>(~static_cast<std::underlying_type_t<Enum>>(E)); }
+	inline Enum& operator|=(Enum& LHS, Enum RHS) { return LHS = static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) | static_cast<std::underlying_type_t<Enum>>(RHS)); }  \
+	inline Enum& operator&=(Enum& LHS, Enum RHS) { return LHS = static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) & static_cast<std::underlying_type_t<Enum>>(RHS)); }  \
+	inline Enum& operator^=(Enum& LHS, Enum RHS) { return LHS = static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) ^ static_cast<std::underlying_type_t<Enum>>(RHS)); }  \
+	inline constexpr Enum operator|(Enum LHS, Enum RHS) { return static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) | static_cast<std::underlying_type_t<Enum>>(RHS)); } \
+	inline constexpr Enum operator&(Enum LHS, Enum RHS) { return static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) & static_cast<std::underlying_type_t<Enum>>(RHS)); } \
+	inline constexpr Enum operator^(Enum LHS, Enum RHS) { return static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) ^ static_cast<std::underlying_type_t<Enum>>(RHS)); } \
+	inline constexpr bool operator!(Enum E) { return !static_cast<std::underlying_type_t<Enum>>(E); }                                                                                  \
+	inline constexpr Enum operator~(Enum E) { return static_cast<Enum>(~static_cast<std::underlying_type_t<Enum>>(E)); }
 
 #if defined(__GNUC__) || defined(__clang__)
-#    define DO_PRAGMA(X)                     _Pragma(#    X)
-#    define PRAGMA_GCC_DIAGNOSTIC_PUSH()     DO_PRAGMA(GCC diagnostic push)
-#    define PRAGMA_GCC_DIAGNOSTIC_WARNING(X) DO_PRAGMA(GCC diagnostic ignored #    X)
-#    define PRAGMA_GCC_DIAGNOSTIC_POP()      DO_PRAGMA(GCC diagnostic pop)
-#    define PRAGMA_MSVC_WARNING_PUSH()
-#    define PRAGMA_MSVC_WARNING_DISABLE(X)
-#    define PRAGMA_MSVC_WARNING_POP()
+	#define DO_PRAGMA(X)					 _Pragma(#X)
+	#define PRAGMA_GCC_DIAGNOSTIC_PUSH()	 DO_PRAGMA(GCC diagnostic push)
+	#define PRAGMA_GCC_DIAGNOSTIC_WARNING(X) DO_PRAGMA(GCC diagnostic ignored #X)
+	#define PRAGMA_GCC_DIAGNOSTIC_POP()		 DO_PRAGMA(GCC diagnostic pop)
+	#define PRAGMA_MSVC_WARNING_PUSH()
+	#define PRAGMA_MSVC_WARNING_DISABLE(X)
+	#define PRAGMA_MSVC_WARNING_POP()
 #elif defined(_MSC_VER)
-#    define PRAGMA_GCC_DIAGNOSTIC_PUSH()
-#    define PRAGMA_GCC_DIAGNOSTIC_WARNING(X)
-#    define PRAGMA_GCC_DIAGNOSTIC_POP()
-#    define PRAGMA_MSVC_WARNING_PUSH()     __pragma(warning(push, 0))
-#    define PRAGMA_MSVC_WARNING_DISABLE(X) __pragma(warning(disable \
-                                                            : X))
-#    define PRAGMA_MSVC_WARNING_POP() __pragma(warning(pop))
+	#define PRAGMA_GCC_DIAGNOSTIC_PUSH()
+	#define PRAGMA_GCC_DIAGNOSTIC_WARNING(X)
+	#define PRAGMA_GCC_DIAGNOSTIC_POP()
+	#define PRAGMA_MSVC_WARNING_PUSH()	   __pragma(warning(push, 0))
+	#define PRAGMA_MSVC_WARNING_DISABLE(X) __pragma(warning(disable \
+															: X))
+	#define PRAGMA_MSVC_WARNING_POP() __pragma(warning(pop))
 #else
-#    define PRAGMA_GCC_DIAGNOSTIC_PUSH()
-#    define PRAGMA_GCC_DIAGNOSTIC_WARNING(X)
-#    define PRAGMA_GCC_DIAGNOSTIC_POP()
-#    define PRAGMA_MSVC_WARNING_PUSH()
-#    define PRAGMA_MSVC_WARNING_DISABLE(X)
-#    define PRAGMA_MSVC_WARNING_POP()
+	#define PRAGMA_GCC_DIAGNOSTIC_PUSH()
+	#define PRAGMA_GCC_DIAGNOSTIC_WARNING(X)
+	#define PRAGMA_GCC_DIAGNOSTIC_POP()
+	#define PRAGMA_MSVC_WARNING_PUSH()
+	#define PRAGMA_MSVC_WARNING_DISABLE(X)
+	#define PRAGMA_MSVC_WARNING_POP()
 #endif
 
 //
 #ifdef ____RTCXX_GENERATOR____
-#    define RMETADATA(...) [[clang::annotate("RtCXX" __VA_OPT__(", ") #    __VA_ARGS__)]] //__attribute__((annotate("Metadata" __VA_OPT__(",") #__VA_ARGS__)))
-#    define RCLASS(...)    RMETADATA(__VA_ARGS__)
-#    define RSTRUCT(...)   RMETADATA(__VA_ARGS__)
-#    define RENUM(...)     RMETADATA(__VA_ARGS__)
-#    define RPROPERTY(...) RMETADATA(__VA_ARGS__)
-#    define RFUNCTION(...) RMETADATA(__VA_ARGS__)
+	#define RMETADATA(...) [[clang::annotate("RtCXX" __VA_OPT__(", ") #__VA_ARGS__)]] //__attribute__((annotate("Metadata" __VA_OPT__(",") #__VA_ARGS__)))
+	#define RCLASS(...)	   RMETADATA(__VA_ARGS__)
+	#define RSTRUCT(...)   RMETADATA(__VA_ARGS__)
+	#define RENUM(...)	   RMETADATA(__VA_ARGS__)
+	#define RPROPERTY(...) RMETADATA(__VA_ARGS__)
+	#define RFUNCTION(...) RMETADATA(__VA_ARGS__)
 #else
-#    define RCLASS(...)
-#    define RENUM(...)
-#    define RPROPERTY(...)
-#    define RFUNCTION(...)
-#    define RMETADATA(...)
+	#define RCLASS(...)
+	#define RENUM(...)
+	#define RPROPERTY(...)
+	#define RFUNCTION(...)
+	#define RMETADATA(...)
 #endif
 
-#define STATIC_CLASS_DECLARATION         \
-public:                                  \
-    static RtCXX::CMetaClass* SelfClass; \
-    static RtCXX::CMetaClass* StaticClass();
+// 名为`GVar_Static[1]`开头的类静态指针变量是函数`Static[1]`局部静态存储的的全局指针
+// 即在应用程序全局初始化之后且在程序main函数返回之前(main函数的作用域)保证可用
+
+#define STATIC_CLASS_DECLARATION                \
+public:                                         \
+	static RtCXX::CMetaClass* GVar_StaticClass; \
+	static RtCXX::CMetaClass* StaticClass();
 
 #define GENERATED_BODY() \
-    STATIC_CLASS_DECLARATION
+	STATIC_CLASS_DECLARATION
 
-#define GENERATED_CLASS_IMPL(Class, Base)                       \
-    RtCXX::CMetaClass* Class::SelfClass = Class::StaticClass(); \
-    RtCXX::CMetaClass* Class::StaticClass()                     \
-    {                                                           \
-        using namespace RtCXX;                                  \
-        return TClass<Class, Base>::CreateStatic(#Class);       \
-    };
+#define GENERATED_CLASS_IMPL(Class, Base)                              \
+	RtCXX::CMetaClass* Class::GVar_StaticClass = Class::StaticClass(); \
+	RtCXX::CMetaClass* Class::StaticClass()                            \
+	{                                                                  \
+		using namespace RtCXX;                                         \
+		return TClass<Class, Base>::CreateStatic(#Class);              \
+	};
 
 #define GENERATED_CLASS_PROPERTY_IMPL(Class, Property) \
-    static CMetaProperty* ____##Class##__##Property##____ = TProperty<Class, decltype(&Class::Property)>::CreateStatic(#Property, &Class::Property, offsetof(Class, Property), Class::SelfClass);
+	static CMetaProperty* ____##Class##__##Property##____ = TProperty<Class, decltype(&Class::Property)>::CreateStatic(#Property, &Class::Property, offsetof(Class, Property), Class::GVar_StaticClass);
 
 #define GENERATED_CLASS_FUNCTION_IMPL(Class, Function) \
-    static CMetaFunction* ____##Class##__##Function##____ = TFunction<decltype(&Class::Function)>::CreateStatic(#Function, &Class::Function, Class::SelfClass);
+	static CMetaFunction* ____##Class##__##Function##____ = TFunction<decltype(&Class::Function)>::CreateStatic(#Function, &Class::Function, Class::GVar_StaticClass);
 
 struct FNull
 {

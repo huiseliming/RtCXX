@@ -141,9 +141,11 @@ void CController::BuildInheritedData()
 		void operator()(CMetaClass* CurrentClass)
 		{
 			CurrentClass->CastRanges.first = CastIndexCounter++;
-			for (auto DerivedClassRef : CurrentClass->DerivedClasses)
+			auto DerivedClassLinkNext = CurrentClass->DerivedClassLink;
+			while (DerivedClassLinkNext)
 			{
-			 	(*this)(DerivedClassRef);
+				(*this)(DerivedClassLinkNext);
+				DerivedClassLinkNext = DerivedClassLinkNext->DerivedClassLinkNext;
 			}
 			CurrentClass->CastRanges.second = CastIndexCounter;
 		}
@@ -152,7 +154,7 @@ void CController::BuildInheritedData()
 	for (size_t i = 0; i < ClassIndices.size(); i++)
 	{
 		auto MetaClass = static_cast<CMetaClass*>(Metadatas[ClassIndices[i]]);
-		if (!MetaClass->ExtendsClass)
+		if (!MetaClass->BaseClass)
 		{
 			Loopper(MetaClass);
 		}
@@ -181,7 +183,25 @@ void CController::Init()
 	RegisterToScriptEngine();
 }
 
+void SetInheritanceRelationship(CMetaClass* InMetaClass, const char* InBaseClassName, CController* InController)
+{
+	assert(InController);
+	InController->GetClassByAfterRegisterClassCallback(
+		InBaseClassName,
+		[InMetaClass](CMetaClass* BaseClass) {
+			InMetaClass->BaseClass = BaseClass;
+			BaseClass->InsertDerivedClass(InMetaClass);
+		});
+}
 
+void SetStandardClassPtrProperty(CMetaProperty** OutProperty, const char* InClassName, CController* InController)
+{
+	InController->GetClassByAfterRegisterClassCallback(InClassName, [OutProperty](CMetaClass* InMetaClass) { *OutProperty = InMetaClass->StandardPtrProperty; });
+}
 
+void SetStandardClassProperty(CMetaProperty** OutProperty, const char* InClassName, CController* InController)
+{
+	InController->GetClassByAfterRegisterClassCallback(InClassName, [OutProperty](CMetaClass* InMetaClass) { *OutProperty = InMetaClass->StandardProperty; });
+}
 
 RTCXX_NAMESPACE_END

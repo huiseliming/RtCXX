@@ -16,7 +16,7 @@ class RTCXX_API CMetaClass : public CMetadata
 	DECLARE_METADATA_CLASS(CMetaClass, CMetadata)
 public:
 	FORCEINLINE CMetaClass(CMetadata* InOwner, const std::string& InName, EClassFlags InClassFlags)
-		: CMetadata(InOwner, InName, CMetaProperty::StaticMetadataClass())
+		: CMetadata(InOwner, InName, CMetaClass::StaticMetadataClass())
 		, ClassFlags(InClassFlags)
 	{
 	}
@@ -37,30 +37,31 @@ public:
 	asUINT ConvertToScriptEngineTypeTraits();
 	void InsertProperty(CMetaProperty* InProperty);
 	void InsertFunction(CMetaFunction* InFunction);
+	void InsertDerivedClass(CMetaClass* InClass);
 
 public:
 	virtual void RegisterToScriptEngine(asIScriptEngine* ScriptEngine) {}
 
 public:
-	auto New() -> void*
+	FORCEINLINE auto New() -> void*
 	{
 		void* instance_ptr = std::malloc(SizeOf);
 		Constructor(instance_ptr);
 		return instance_ptr;
 	}
-	auto CopyNew(void* other_ptr) -> void*
+	FORCEINLINE auto CopyNew(void* other_ptr) -> void*
 	{
 		void* instance_ptr = std::malloc(SizeOf);
 		CopyConstructor(instance_ptr, other_ptr);
 		return instance_ptr;
 	}
-	auto MoveNew(void* other_ptr) -> void*
+	FORCEINLINE auto MoveNew(void* other_ptr) -> void*
 	{
 		void* instance_ptr = std::malloc(SizeOf);
 		MoveConstructor(instance_ptr, other_ptr);
 		return instance_ptr;
 	}
-	auto Delete(void* instance_ptr) -> void
+	FORCEINLINE auto Delete(void* instance_ptr) -> void
 	{
 		Destructor(instance_ptr);
 		std::free(instance_ptr);
@@ -85,21 +86,27 @@ public:
 
 	// bool IsExtendsFrom(CMetaClass* target_extends_class)
 	//{
-	//	auto extends_type = ExtendsClass;
+	//	auto extends_type = BaseClass;
 	//	while (extends_type != nullptr)
 	//	{
 	//		if (extends_type == target_extends_class)
 	//			return true;
-	//		extends_type = extends_type->ExtendsClass;
+	//		extends_type = extends_type->BaseClass;
 	//	}
 	//	return false;
 	// }
-	std::type_index TypeIndex = typeid(FNull);
-	I32 SizeOf;
-	CMetaClass* ExtendsClass;
-	std::vector<CMetaClass*> DerivedClasses;
+
+	CMetaClass* DerivedClassLinkNext;
+
+	CMetaClass* BaseClass;
+	CMetaClass* DerivedClassLink;
+
 	CMetaProperty* PropertyLink;
 	CMetaFunction* FunctionLink;
+
+
+	std::type_index TypeIndex = typeid(FNull);
+	I32 SizeOf;
 	std::pair<u32, u32> CastRanges;
 	bool bHasConstructor		: 1;
 	bool bHasDestructor			: 1;

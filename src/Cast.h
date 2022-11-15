@@ -6,12 +6,12 @@ RTCXX_NAMESPACE_BEGIN
 
 FORCEINLINE bool CastRecursively(CMetaClass* From, CMetaClass* To)
 {
-	auto CurrentTarget = To->ExtendsClass;
+	auto CurrentTarget = To->BaseClass;
 	while (CurrentTarget)
 	{
 		if (CurrentTarget == From)
 			return true;
-		CurrentTarget = CurrentTarget->ExtendsClass;
+		CurrentTarget = CurrentTarget->BaseClass;
 	}
 	return false;
 }
@@ -25,9 +25,9 @@ FORCEINLINE bool CastCheckCastRanges(CMetaClass* From, CMetaClass* To)
 }
 
 template<typename T>
-OObject* CastTo(OObject* Object)
+OObject* Cast(OObject* Object)
 {
-	if (CastCheckCastRanges(Object->GetClass(), T::SelfClass))
+	if (CastCheckCastRanges(Object->GetClass(), T::GVar_StaticClass))
 	{
 		return static_cast<T*>(Object);
 	}

@@ -117,7 +117,8 @@ static struct CStandardPropertyIniter
 
 std::string CMetaProperty::GetScriptDeclaration()
 {
-	return fmt::format("{:s} {:s}{:s}", GetScriptTypeDecl(), bIsPointer ? "&" : "", Name);
+	std::string ScriptTypeDecl = GetScriptTypeDecl();
+	return fmt::format("{:s} {:s}", ScriptTypeDecl, Name);
 }
 
 std::string CBoolProperty::GetScriptTypeDecl()

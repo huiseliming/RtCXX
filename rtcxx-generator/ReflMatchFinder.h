@@ -66,46 +66,6 @@ struct CPropertyConstructor {
   virtual ~CPropertyConstructor() {}
   virtual std::string GetPropertyType() { return "CMetaProperty"; }
 
-  std::string GetPropertyName() 
-  {
-      std::string PropertyName = "____";
-      if (OwnerDecl)
-      {
-          PropertyName.append(OwnerDecl->getNameAsString());
-      }
-      PropertyName.append("__");
-      if (PropertyDecl)
-      {
-          PropertyName.append(PropertyDecl->getNameAsString());
-      }
-      else
-      {
-          PropertyName.append("_");
-      }
-      return PropertyName;
-  }
-
-  virtual void ConstructCode(std::vector<std::string>& Lines, std::vector<std::string>& InPropertyFlags) {
-    std::string Code;
-    if (auto OwnerCXXRecordDecl = dyn_cast<clang::CXXRecordDecl>(OwnerDecl))
-    {
-        Lines.push_back(std::format("		static {2:s} {1:s}(\"{3:s}\", offsetof({0:s}, {3:s}));\n", OwnerDecl->getNameAsString(), GetPropertyName(), GetPropertyType(), PropertyDecl->getNameAsString()));
-        Lines.push_back(std::format("		{0:s}.SetOwner(&Class);\n", GetPropertyName()));
-        Lines.push_back(std::format("		Class.InsertProperty(&{0:s});\n", GetPropertyName()));
-    }
-    if (auto OwnerFunctionDecl = dyn_cast<clang::FunctionDecl>(OwnerDecl))
-    {
-        Lines.push_back(std::format("		static {2:s} {1:s}(\"{0:s}\", 0);\n", PropertyDecl ? PropertyDecl->getNameAsString() : "_", GetPropertyName(), GetPropertyType()));
-        Lines.push_back(std::format("		{0:s}.SetOwner(&____{1:s});\n", GetPropertyName(), OwnerFunctionDecl->getNameAsString()));
-        Lines.push_back(std::format("		____{1:s}.InsertProperty(&{0:s});\n", GetPropertyName(), OwnerFunctionDecl->getNameAsString()));
-    }
-    if (OwnerDecl)
-    {
-        Lines.push_back(std::format("		{0:s}.bIsStatic = false;\n", GetPropertyName()));
-    }
-    Lines.push_back(std::format("		Controller->RegisterMetadata(&{0:s});\n", GetPropertyName()));
-  }
-
   const clang::NamedDecl* OwnerDecl;
   const clang::NamedDecl* PropertyDecl;
 };
@@ -158,7 +118,7 @@ struct CF64PropertyConstructor : public CPropertyConstructor {
 struct CClassPropertyConstructor : public CPropertyConstructor {
     DECL_CAST(CClassPropertyConstructor, CPropertyConstructor)
     virtual std::string GetPropertyType() { return "CClassProperty"; }
-    std::string ClassName;
+    clang::CXXRecordDecl* ClassDecl;
 };
 struct CEnumPropertyConstructor : public CPropertyConstructor {
     DECL_CAST(CEnumPropertyConstructor, CPropertyConstructor)
@@ -175,26 +135,6 @@ struct CPtrPropertyConstructor : public CPropertyConstructor
     DECL_CAST(CPtrPropertyConstructor, CPropertyConstructor)
     std::shared_ptr<CPropertyConstructor> PointerToProp;
     virtual std::string GetPropertyType() { return "CPtrProperty"; }
-    virtual void ConstructCode(std::vector<std::string>& Lines, std::vector<std::string>& InPropertyFlags) {
-        CPropertyConstructor::ConstructCode(Lines, InPropertyFlags);
-        if (auto PointerToClassProp = PointerToProp->CastTo<CClassPropertyConstructor>())
-        {
-            Lines.push_back(std::format("        Controller->GetClassByAfterRegisterClassCallback(\"{0:s}\", [&](CMetaClass* InMetaClass) {{ {1:s}.PointerToProp = InMetaClass->StandardProperty; }});\n", PointerToClassProp->ClassName, GetPropertyName()));
-        }
-        else if (auto PointerToClassProp = PointerToProp->CastTo<CEnumPropertyConstructor>())
-        {
-            //                Code += std::format(
-            //R"(
-            //        Controller->GetClassByAfterRegisterClassCallback("{0:s}", [&](CMetaClass* InMetaClass) {{
-            //            {1:s}.PointerToProp = InMetaClass->StandardPtr{2:s}; 
-            //        }})",
-            //                    PointerToClassProp->ClassName, GetPropertyName(), PropertyType);
-        }
-        else
-        {
-            Lines.push_back(std::format("        {0:s}.PointerToProp = &Standard{1:s};\n", GetPropertyName(), PointerToProp->GetPropertyType()));
-        }
-    };
 };
 
 struct CObjectPtrPropertyConstructor : public CPtrPropertyConstructor {
@@ -205,563 +145,630 @@ struct CObjectPtrPropertyConstructor : public CPtrPropertyConstructor {
 struct CArrayPropertyConstructor : public CPropertyConstructor {
     DECL_CAST(CArrayPropertyConstructor, CPropertyConstructor)
     virtual std::string GetPropertyType() { return "CArrayProperty"; }
-    virtual void ConstructCode(std::vector<std::string>& Lines, std::vector<std::string>& InPropertyFlags) {
-         CPropertyConstructor::ConstructCode(Lines, InPropertyFlags);
-        std::string PtrStr;
-        auto PropConstructor = ElementProp.get();
-        if (auto ElementPtrProp = PropConstructor->CastTo<CPtrPropertyConstructor>())
-        {
-            PtrStr = "Ptr";
-            PropConstructor = ElementPtrProp->PointerToProp.get();
-        }
-        if (auto ElementClassProp = PropConstructor->CastTo<CClassPropertyConstructor>())
-        {
-            Lines.push_back(std::format("Controller->GetClassByAfterRegisterClassCallback(\"{0:s}\", [&](CMetaClass* InMetaClass) {{ {1:s}.ElementProp = InMetaClass->Standard{2:s}; }});\n",
-                ElementClassProp->ClassName, GetPropertyName(), PtrStr));
-        }
-        else if (auto PointerToClassProp = PropConstructor->CastTo<CEnumPropertyConstructor>())
-        {
-            //                Code += std::format(
-            //R"(
-            //        Controller->GetClassByAfterRegisterClassCallback("{0:s}", [&](CMetaClass* InMetaClass) {{
-            //            {1:s}.PointerToProp = InMetaClass->StandardPtr{2:s}; 
-            //        }})",
-            //                    PointerToClassProp->ClassName, GetPropertyName(), PropertyType);
-        }
-        else
-        {
-            Lines.push_back(std::format("{0:s}.ElementProp = &Standard{1:s};\n", GetPropertyName(), PtrStr, PropConstructor->GetPropertyType()));
-        }
-    }
     std::shared_ptr<CPropertyConstructor> ElementProp;
 };
 
 class ReflClassMatchFinder
     : public clang::ast_matchers::MatchFinder::MatchCallback {
 public:
-  void run(const clang::ast_matchers::MatchFinder::MatchResult &MatchResult) {
-    Context = MatchResult.Context;
-    RtCXXSourceManager = MatchResult.SourceManager;
+    void run(const clang::ast_matchers::MatchFinder::MatchResult& MatchResult) {
+        Context = MatchResult.Context;
+        RtCXXSourceManager = MatchResult.SourceManager;
 
-    clang::Decl const *Decl = MatchResult.Nodes.getNodeAs<clang::Decl>("Decl");
-    auto Filename = RtCXXSourceManager->getFilename(Decl->getLocation());
-    llvm::SmallVector<char, 1024> SmallVector(Filename.begin(), Filename.end());
-    std::unordered_set<unsigned int> FileIDSet;
-    for (auto& HeaderFile : HeaderFiles)
-    {
-        auto ExpectedFileRef = RtCXXSourceManager->getFileManager().getFileRef(HeaderFile);
-        if (ExpectedFileRef)
+        clang::Decl const* Decl = MatchResult.Nodes.getNodeAs<clang::Decl>("Decl");
+        auto Filename = RtCXXSourceManager->getFilename(Decl->getLocation());
+        llvm::SmallVector<char, 1024> SmallVector(Filename.begin(), Filename.end());
+        std::unordered_set<unsigned int> FileIDSet;
+        for (auto& HeaderFile : HeaderFiles)
         {
-            auto FileRef = ExpectedFileRef.get();
-            FileIDSet.insert(FileRef.getFileEntry().getUID());
-        }
-    }
-    //RtCXXSourceManager->fileid
-    if (FileIDSet.contains(RtCXXSourceManager->getFileEntryRefForID(RtCXXSourceManager->getFileID(Decl->getLocation())).getValue().getUID())) {
-      if (clang::EnumDecl const *EnumDecl =
-              MatchResult.Nodes.getNodeAs<clang::EnumDecl>("Decl")) {
-        EnumDecls.push_back(EnumDecl);
-      }
-
-      if (clang::CXXRecordDecl const *CXXRecordDecl =
-              MatchResult.Nodes.getNodeAs<clang::CXXRecordDecl>("Decl")) {
-        CXXRecordDecls.insert(CXXRecordDecl);
-      }
-
-      if (clang::FieldDecl const *FieldDecl =
-              MatchResult.Nodes.getNodeAs<clang::FieldDecl>("Decl")) {
-        clang::CXXRecordDecl const *Parent =
-            cast<clang::CXXRecordDecl const>(FieldDecl->getParent());
-        FieldDeclMap.insert(std::make_pair(FieldDecl, Parent));
-      }
-
-      if (clang::FunctionDecl const *FunctionDecl =
-              MatchResult.Nodes.getNodeAs<clang::FunctionDecl>("Decl")) {
-        clang::CXXRecordDecl const *Parent =
-            cast<clang::CXXRecordDecl const>(FunctionDecl->getParent());
-        FunctionDeclMap.insert(std::make_pair(FunctionDecl, Parent));
-      }
-    }
-  }
-
-  bool ParseReflectAnnotation(
-      const clang::Decl *CheckedDecl,
-      std::unordered_map<std::string, std::string> &OutMetadata) {
-    OutMetadata.clear();
-    if (CheckedDecl->hasAttrs()) {
-      for (auto Attr : CheckedDecl->getAttrs()) {
-
-        if (Attr->getKind() == clang::attr::Annotate) {
-          std::string RowStringBuffer;
-          llvm::raw_string_ostream RowStringOutputStream(RowStringBuffer);
-          Attr->printPretty(RowStringOutputStream,
-                            clang::PrintingPolicy(clang::LangOptions()));
-          std::string AttrFullString(RowStringOutputStream.str());
-          constexpr static size_t ReflAnnotateStartSize =
-              sizeof("[[clang::annotate(\"RtCXX") - 1;
-          constexpr static size_t ReflAnnotateEndSize = sizeof("\")]]") - 1;
-          size_t ReflAnnotateStartPos =
-              AttrFullString.find("[[clang::annotate(\"RtCXX");
-          size_t ReflAnnotateEndPos = AttrFullString.rfind("\")]]");
-          if (ReflAnnotateStartPos != std::string::npos &&
-              ReflAnnotateEndPos != std::string::npos &&
-              ReflAnnotateStartPos <= 1 &&
-              (ReflAnnotateEndPos == (AttrFullString.size() - 4))) {
-            std::string MetaString;
-            MetaString.reserve(AttrFullString.size() - ReflAnnotateStartSize -
-                               ReflAnnotateEndSize - ReflAnnotateStartPos);
-            std::string MetadataKey, MetadataValue;
-            size_t OffsetIndex = ReflAnnotateStartSize + ReflAnnotateStartPos;
-            size_t LastIndex = AttrFullString.size() - ReflAnnotateEndSize;
-            if (AttrFullString[OffsetIndex] == ',')
-              OffsetIndex++;
-            while (OffsetIndex < LastIndex) {
-              while (OffsetIndex < LastIndex &&
-                     std::isspace(AttrFullString[OffsetIndex]))
-                OffsetIndex++;
-              while (OffsetIndex < LastIndex &&
-                     (std::isalpha(AttrFullString[OffsetIndex]) ||
-                      std::isdigit(AttrFullString[OffsetIndex]) ||
-                      AttrFullString[OffsetIndex] == '_')) {
-                MetadataKey.push_back(AttrFullString[OffsetIndex]);
-                OffsetIndex++;
-              }
-              while (OffsetIndex < LastIndex &&
-                     std::isspace(AttrFullString[OffsetIndex]))
-                OffsetIndex++;
-              if (AttrFullString[OffsetIndex] == '=') {
-                OffsetIndex++;
-                while (OffsetIndex < LastIndex &&
-                       std::isspace(AttrFullString[OffsetIndex]))
-                  OffsetIndex++;
-                if (AttrFullString[OffsetIndex] == '\"') {
-                  OffsetIndex++;
-                  while (OffsetIndex < LastIndex &&
-                         AttrFullString[OffsetIndex] != '\"') {
-                    if (AttrFullString[OffsetIndex] == '\\') {
-                      if (AttrFullString[OffsetIndex] == '\\' ||
-                          AttrFullString[OffsetIndex] == '\"') {
-                        MetadataValue.push_back(AttrFullString[OffsetIndex]);
-                        OffsetIndex++;
-                      } else {
-                        throw std::runtime_error(std::format(
-                            "{:s} illegal metadata macro, correct format "
-                            "should be RMETADATA(A=B, C = \"D\")",
-                            Attr->getLocation().printToString(
-                                *RtCXXSourceManager)));
-                      }
-                    }
-                    MetadataValue.push_back(AttrFullString[OffsetIndex]);
-                    OffsetIndex++;
-                  }
-                  OffsetIndex++;
-                } else {
-                  if (std::isdigit(AttrFullString[OffsetIndex])) {
-                    while (OffsetIndex < LastIndex &&
-                           (std::isdigit(AttrFullString[OffsetIndex]) ||
-                            AttrFullString[OffsetIndex] != '.')) {
-                      MetadataValue.push_back(AttrFullString[OffsetIndex]);
-                      OffsetIndex++;
-                    }
-                  } else {
-                    while (OffsetIndex < LastIndex &&
-                           (std::isalpha(AttrFullString[OffsetIndex]) ||
-                            std::isdigit(AttrFullString[OffsetIndex]) ||
-                            AttrFullString[OffsetIndex] == '_')) {
-                      MetadataValue.push_back(AttrFullString[OffsetIndex]);
-                      OffsetIndex++;
-                    }
-                  }
-                }
-                while (OffsetIndex < LastIndex &&
-                       std::isspace(AttrFullString[OffsetIndex]))
-                  OffsetIndex++;
-                if (OutMetadata.contains(MetadataKey)) {
-                  throw std::runtime_error(std::format(
-                      "{:s} illegal metadata macro, correct format should be "
-                      "RMETADATA(A=B, C = \"D\")",
-                      Attr->getLocation().printToString(*RtCXXSourceManager)));
-                }
-                OutMetadata.insert(std::make_pair(MetadataKey, MetadataValue));
-                if (AttrFullString[OffsetIndex] == ',') {
-                  OffsetIndex++;
-                } else if (OffsetIndex == LastIndex) {
-
-                } else {
-                  throw std::runtime_error(std::format(
-                      "{:s} illegal metadata macro, correct format should be "
-                      "RMETADATA(A=B, C = \"D\")",
-                      Attr->getLocation().printToString(*RtCXXSourceManager)));
-                }
-              } else if (AttrFullString[OffsetIndex] == ',') {
-                if (OutMetadata.contains(MetadataKey)) {
-                  throw std::runtime_error(std::format(
-                      "{:s} illegal metadata macro, correct format should be "
-                      "RMETADATA(A=B, C = \"D\")",
-                      Attr->getLocation().printToString(*RtCXXSourceManager)));
-                }
-                OutMetadata.insert(std::make_pair(MetadataKey, MetadataValue));
-                OffsetIndex++;
-              } else if (OffsetIndex == LastIndex) {
-                if (OutMetadata.contains(MetadataKey)) {
-                  throw std::runtime_error(std::format(
-                      "{:s} illegal metadata macro, correct format should be "
-                      "RMETADATA(A=B, C = \"D\")",
-                      Attr->getLocation().printToString(*RtCXXSourceManager)));
-                }
-                OutMetadata.insert(std::make_pair(MetadataKey, MetadataValue));
-              } else {
-                throw std::runtime_error(std::format(
-                    "{:s} illegal metadata macro, correct format should be "
-                    "RMETADATA(A=B, C = \"D\")",
-                    Attr->getLocation().printToString(*RtCXXSourceManager)));
-              }
-              MetadataKey.clear();
-              MetadataValue.clear();
+            auto ExpectedFileRef = RtCXXSourceManager->getFileManager().getFileRef(HeaderFile);
+            if (ExpectedFileRef)
+            {
+                auto FileRef = ExpectedFileRef.get();
+                FileIDSet.insert(FileRef.getFileEntry().getUID());
             }
-            return true;
-          }
         }
-      }
+        //RtCXXSourceManager->fileid
+        if (FileIDSet.contains(RtCXXSourceManager->getFileEntryRefForID(RtCXXSourceManager->getFileID(Decl->getLocation())).getValue().getUID())) {
+            if (clang::EnumDecl const* EnumDecl =
+                MatchResult.Nodes.getNodeAs<clang::EnumDecl>("Decl")) {
+                EnumDecls.push_back(EnumDecl);
+            }
+
+            if (clang::CXXRecordDecl const* CXXRecordDecl =
+                MatchResult.Nodes.getNodeAs<clang::CXXRecordDecl>("Decl")) {
+                CXXRecordDecls.insert(CXXRecordDecl);
+            }
+
+            if (clang::FieldDecl const* FieldDecl =
+                MatchResult.Nodes.getNodeAs<clang::FieldDecl>("Decl")) {
+                clang::CXXRecordDecl const* Parent =
+                    cast<clang::CXXRecordDecl const>(FieldDecl->getParent());
+                FieldDeclMap.insert(std::make_pair(FieldDecl, Parent));
+            }
+
+            if (clang::FunctionDecl const* FunctionDecl =
+                MatchResult.Nodes.getNodeAs<clang::FunctionDecl>("Decl")) {
+                clang::CXXRecordDecl const* Parent =
+                    cast<clang::CXXRecordDecl const>(FunctionDecl->getParent());
+                FunctionDeclMap.insert(std::make_pair(FunctionDecl, Parent));
+            }
+        }
     }
-    return false;
-  }
 
-  void
-  GetMetadataString(const std::string &OutDeclName,
-                    const std::map<std::string, std::string> &InMetadataMap,
-                    std::string &OutMetadataDefineString) {
-    OutMetadataDefineString +=
-        std::format("static std::array<std::pair<std::string, std::string>, "
-                    "{:d}> {:s} = {{\n",
-                    InMetadataMap.size(), OutDeclName);
-    for (auto Metadata : InMetadataMap) {
-      OutMetadataDefineString +=
-          std::format("    std::pair{{\"{:s}\", \"{:s}\"}},\n", Metadata.first,
-                      Metadata.second);
+    bool ParseReflectAnnotation(
+        const clang::Decl* CheckedDecl,
+        std::unordered_map<std::string, std::string>& OutMetadata) {
+        OutMetadata.clear();
+        if (CheckedDecl->hasAttrs()) {
+            for (auto Attr : CheckedDecl->getAttrs()) {
+
+                if (Attr->getKind() == clang::attr::Annotate) {
+                    std::string RowStringBuffer;
+                    llvm::raw_string_ostream RowStringOutputStream(RowStringBuffer);
+                    Attr->printPretty(RowStringOutputStream,
+                        clang::PrintingPolicy(clang::LangOptions()));
+                    std::string AttrFullString(RowStringOutputStream.str());
+                    constexpr static size_t ReflAnnotateStartSize =
+                        sizeof("[[clang::annotate(\"RtCXX") - 1;
+                    constexpr static size_t ReflAnnotateEndSize = sizeof("\")]]") - 1;
+                    size_t ReflAnnotateStartPos =
+                        AttrFullString.find("[[clang::annotate(\"RtCXX");
+                    size_t ReflAnnotateEndPos = AttrFullString.rfind("\")]]");
+                    if (ReflAnnotateStartPos != std::string::npos &&
+                        ReflAnnotateEndPos != std::string::npos &&
+                        ReflAnnotateStartPos <= 1 &&
+                        (ReflAnnotateEndPos == (AttrFullString.size() - 4))) {
+                        std::string MetaString;
+                        MetaString.reserve(AttrFullString.size() - ReflAnnotateStartSize -
+                            ReflAnnotateEndSize - ReflAnnotateStartPos);
+                        std::string MetadataKey, MetadataValue;
+                        size_t OffsetIndex = ReflAnnotateStartSize + ReflAnnotateStartPos;
+                        size_t LastIndex = AttrFullString.size() - ReflAnnotateEndSize;
+                        if (AttrFullString[OffsetIndex] == ',')
+                            OffsetIndex++;
+                        while (OffsetIndex < LastIndex) {
+                            while (OffsetIndex < LastIndex &&
+                                std::isspace(AttrFullString[OffsetIndex]))
+                                OffsetIndex++;
+                            while (OffsetIndex < LastIndex &&
+                                (std::isalpha(AttrFullString[OffsetIndex]) ||
+                                    std::isdigit(AttrFullString[OffsetIndex]) ||
+                                    AttrFullString[OffsetIndex] == '_')) {
+                                MetadataKey.push_back(AttrFullString[OffsetIndex]);
+                                OffsetIndex++;
+                            }
+                            while (OffsetIndex < LastIndex &&
+                                std::isspace(AttrFullString[OffsetIndex]))
+                                OffsetIndex++;
+                            if (AttrFullString[OffsetIndex] == '=') {
+                                OffsetIndex++;
+                                while (OffsetIndex < LastIndex &&
+                                    std::isspace(AttrFullString[OffsetIndex]))
+                                    OffsetIndex++;
+                                if (AttrFullString[OffsetIndex] == '\"') {
+                                    OffsetIndex++;
+                                    while (OffsetIndex < LastIndex &&
+                                        AttrFullString[OffsetIndex] != '\"') {
+                                        if (AttrFullString[OffsetIndex] == '\\') {
+                                            if (AttrFullString[OffsetIndex] == '\\' ||
+                                                AttrFullString[OffsetIndex] == '\"') {
+                                                MetadataValue.push_back(AttrFullString[OffsetIndex]);
+                                                OffsetIndex++;
+                                            }
+                                            else {
+                                                throw std::runtime_error(std::format(
+                                                    "{:s} illegal metadata macro, correct format "
+                                                    "should be RMETADATA(A=B, C = \"D\")",
+                                                    Attr->getLocation().printToString(
+                                                        *RtCXXSourceManager)));
+                                            }
+                                        }
+                                        MetadataValue.push_back(AttrFullString[OffsetIndex]);
+                                        OffsetIndex++;
+                                    }
+                                    OffsetIndex++;
+                                }
+                                else {
+                                    if (std::isdigit(AttrFullString[OffsetIndex])) {
+                                        while (OffsetIndex < LastIndex &&
+                                            (std::isdigit(AttrFullString[OffsetIndex]) ||
+                                                AttrFullString[OffsetIndex] != '.')) {
+                                            MetadataValue.push_back(AttrFullString[OffsetIndex]);
+                                            OffsetIndex++;
+                                        }
+                                    }
+                                    else {
+                                        while (OffsetIndex < LastIndex &&
+                                            (std::isalpha(AttrFullString[OffsetIndex]) ||
+                                                std::isdigit(AttrFullString[OffsetIndex]) ||
+                                                AttrFullString[OffsetIndex] == '_')) {
+                                            MetadataValue.push_back(AttrFullString[OffsetIndex]);
+                                            OffsetIndex++;
+                                        }
+                                    }
+                                }
+                                while (OffsetIndex < LastIndex &&
+                                    std::isspace(AttrFullString[OffsetIndex]))
+                                    OffsetIndex++;
+                                if (OutMetadata.contains(MetadataKey)) {
+                                    throw std::runtime_error(std::format(
+                                        "{:s} illegal metadata macro, correct format should be "
+                                        "RMETADATA(A=B, C = \"D\")",
+                                        Attr->getLocation().printToString(*RtCXXSourceManager)));
+                                }
+                                OutMetadata.insert(std::make_pair(MetadataKey, MetadataValue));
+                                if (AttrFullString[OffsetIndex] == ',') {
+                                    OffsetIndex++;
+                                }
+                                else if (OffsetIndex == LastIndex) {
+
+                                }
+                                else {
+                                    throw std::runtime_error(std::format(
+                                        "{:s} illegal metadata macro, correct format should be "
+                                        "RMETADATA(A=B, C = \"D\")",
+                                        Attr->getLocation().printToString(*RtCXXSourceManager)));
+                                }
+                            }
+                            else if (AttrFullString[OffsetIndex] == ',') {
+                                if (OutMetadata.contains(MetadataKey)) {
+                                    throw std::runtime_error(std::format(
+                                        "{:s} illegal metadata macro, correct format should be "
+                                        "RMETADATA(A=B, C = \"D\")",
+                                        Attr->getLocation().printToString(*RtCXXSourceManager)));
+                                }
+                                OutMetadata.insert(std::make_pair(MetadataKey, MetadataValue));
+                                OffsetIndex++;
+                            }
+                            else if (OffsetIndex == LastIndex) {
+                                if (OutMetadata.contains(MetadataKey)) {
+                                    throw std::runtime_error(std::format(
+                                        "{:s} illegal metadata macro, correct format should be "
+                                        "RMETADATA(A=B, C = \"D\")",
+                                        Attr->getLocation().printToString(*RtCXXSourceManager)));
+                                }
+                                OutMetadata.insert(std::make_pair(MetadataKey, MetadataValue));
+                            }
+                            else {
+                                throw std::runtime_error(std::format(
+                                    "{:s} illegal metadata macro, correct format should be "
+                                    "RMETADATA(A=B, C = \"D\")",
+                                    Attr->getLocation().printToString(*RtCXXSourceManager)));
+                            }
+                            MetadataKey.clear();
+                            MetadataValue.clear();
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
-    OutMetadataDefineString.resize(OutMetadataDefineString.size() - 1);
-    if (OutMetadataDefineString.back() == ',') {
-      OutMetadataDefineString.back() = '\n';
+
+    void
+        GetMetadataString(const std::string& OutDeclName,
+            const std::map<std::string, std::string>& InMetadataMap,
+            std::string& OutMetadataDefineString) {
+        OutMetadataDefineString +=
+            std::format("static std::array<std::pair<std::string, std::string>, "
+                "{:d}> {:s} = {{\n",
+                InMetadataMap.size(), OutDeclName);
+        for (auto Metadata : InMetadataMap) {
+            OutMetadataDefineString +=
+                std::format("    std::pair{{\"{:s}\", \"{:s}\"}},\n", Metadata.first,
+                    Metadata.second);
+        }
+        OutMetadataDefineString.resize(OutMetadataDefineString.size() - 1);
+        if (OutMetadataDefineString.back() == ',') {
+            OutMetadataDefineString.back() = '\n';
+        }
+        OutMetadataDefineString += std::format("}};\n");
     }
-    OutMetadataDefineString += std::format("}};\n");
-  }
 
-  std::vector<std::string> ParseProperty(const clang::NamedDecl* OwnerDecl, const clang::NamedDecl* PropertyDecl, clang::QualType PropertyType, std::vector<std::string> PropertyFlags = {})
-  {
-      std::vector<std::string> PropertyCodes;
-      std::shared_ptr<CArrayPropertyConstructor> ArrayPropertyConstructor;
-      std::shared_ptr<CPtrPropertyConstructor> PtrPropertyConstructor;
-      std::shared_ptr<CPropertyConstructor> PropertyConstructor;
-      auto PropertyCXXRecordDecl = PropertyType->getAsCXXRecordDecl();
-      if (!PropertyType->isVoidType())
-      {
-          if (PropertyType->isArrayType()) {
-              ArrayPropertyConstructor = std::make_shared<CArrayPropertyConstructor>();
-              const clang::ArrayType* ArrayPropertyType =
-                  PropertyType->getAsArrayTypeUnsafe();
-              PropertyType = ArrayPropertyType->getElementType();
-          }
-          if (PropertyType->isPointerType()) {
-              PtrPropertyConstructor = std::make_shared<CPtrPropertyConstructor>();
-              PropertyType = PropertyType->getPointeeType();
-          }
-          else if (PropertyType->isReferenceType()) {
-              if (auto OwnerFunctionDecl = dyn_cast<clang::FunctionDecl>(OwnerDecl))
-              {
-                  PropertyFlags.push_back("PF_ReferenceParam");
-                  PtrPropertyConstructor = std::make_shared<CPtrPropertyConstructor>();
-              }
-              else
-              {
-                  throw std::runtime_error("???");
-              }
-              PropertyType = PropertyType->getPointeeType();
-          }
-          if (PropertyType->isBuiltinType()) {
-              auto PropertyTypeInfo =
-                  Context->getTypeInfo(PropertyType.getTypePtr());
-              if (PropertyType->isSignedIntegerType()) {
-                  if (PropertyTypeInfo.Width / 8 == 1)   PropertyConstructor = std::make_shared<CI8PropertyConstructor>();
-                  else if (PropertyTypeInfo.Width / 8 == 2)PropertyConstructor = std::make_shared<CI16PropertyConstructor>();
-                  else if (PropertyTypeInfo.Width / 8 == 4)PropertyConstructor = std::make_shared<CI32PropertyConstructor>();
-                  else if (PropertyTypeInfo.Width / 8 == 8)PropertyConstructor = std::make_shared<CI64PropertyConstructor>();
-              }
-              else if (PropertyType->isUnsignedIntegerType()) {
-                  if (PropertyTypeInfo.Width / 8 == 1)     PropertyConstructor = std::make_shared<CU8PropertyConstructor>();
-                  else if (PropertyTypeInfo.Width / 8 == 2)PropertyConstructor = std::make_shared<CU16PropertyConstructor>();
-                  else if (PropertyTypeInfo.Width / 8 == 4)PropertyConstructor = std::make_shared<CU32PropertyConstructor>();
-                  else if (PropertyTypeInfo.Width / 8 == 8)PropertyConstructor = std::make_shared<CU64PropertyConstructor>();
-              }
-              else if (PropertyType->isFloatingType()) {
-                  if (PropertyTypeInfo.Width / 8 == 4)      PropertyConstructor = std::make_shared<CF32PropertyConstructor>();
-                  else if (PropertyTypeInfo.Width / 8 == 8) PropertyConstructor = std::make_shared<CF64PropertyConstructor>();
-              }
-              else if (PropertyType->isBooleanType()) {
-                  PropertyConstructor = std::make_shared<CBoolPropertyConstructor>();
-              }
-              else {
-                  throw std::runtime_error("???");
-              }
-          }
-          else if (PropertyType->isStructureOrClassType()) {
-              PropertyConstructor = std::make_shared<CClassPropertyConstructor>();
-              clang::CXXRecordDecl* FieldCXXRecordDecl = PropertyType->getAsCXXRecordDecl();
-              if (PropertyType.getAsString() == "std::string") {
-                  PropertyConstructor = std::make_shared<CStrPropertyConstructor>();
-              }
-              else {
-                  // 寻找
-                  auto FindObjectCXXRecordDecl = FieldCXXRecordDecl;
-                  while (FindObjectCXXRecordDecl) {
-                      if (FindObjectCXXRecordDecl->getQualifiedNameAsString() ==
-                          "RtCXX::OObject") {
-                          if (PtrPropertyConstructor)
-                          {
-                              PtrPropertyConstructor = std::make_shared<CObjectPtrPropertyConstructor>();
-                          }
-                          break;
-                      }
-                      if (FindObjectCXXRecordDecl->getNumBases() > 0) {
-                          FindObjectCXXRecordDecl =
-                              FindObjectCXXRecordDecl->bases_begin()
-                              ->getType()
-                              ->getAsCXXRecordDecl();
-                      }
-                      else {
-                          FindObjectCXXRecordDecl = nullptr;
-                      }
-                  }
-                  if (!PropertyConstructor)
-                  {
-                      PropertyConstructor = std::make_shared<CClassPropertyConstructor>();
-                  }
-                  if (auto ClassPropertyConstructor = PropertyConstructor->CastTo<CClassPropertyConstructor>())
-                  {
-                      ClassPropertyConstructor->ClassName = FieldCXXRecordDecl->getQualifiedNameAsString();
-                  }
-              }
-          }
-          else if (PropertyType->isEnumeralType()) {
-              PropertyConstructor = std::make_shared<CEnumPropertyConstructor>();
-          }
-          else {
-              throw std::runtime_error("???");
-          }
-      }
-      else
-      {
-          PropertyConstructor = std::make_shared<CPropertyConstructor>();
-      }
-      std::shared_ptr<CPropertyConstructor> RootPropertyConstructor;
-      RootPropertyConstructor = PropertyConstructor;
-      if (PtrPropertyConstructor)
-      {
-          RootPropertyConstructor = PtrPropertyConstructor;
-          PtrPropertyConstructor->PointerToProp = PropertyConstructor;
-      }
-      if (ArrayPropertyConstructor)
-      {
-          RootPropertyConstructor = ArrayPropertyConstructor;
-          RootPropertyConstructor = ArrayPropertyConstructor;
-          if (PtrPropertyConstructor)
-          {
-              ArrayPropertyConstructor->ElementProp = PtrPropertyConstructor;
-          }
-          else
-          {
-              ArrayPropertyConstructor->ElementProp = PropertyConstructor;
-          }
-      }
-      RootPropertyConstructor->OwnerDecl = OwnerDecl;
-      RootPropertyConstructor->PropertyDecl = PropertyDecl;
-      if (RootPropertyConstructor == PropertyConstructor)
-      {
+    std::string ParseProperty(const clang::NamedDecl* OwnerDecl, const clang::NamedDecl* PropertyDecl, clang::QualType PropertyType, std::vector<std::string> PropertyFlags, const std::string& UnqiueStructName)
+    {
+        std::vector<std::string> PropertyCodes;
+        std::shared_ptr<CArrayPropertyConstructor> ArrayPropertyConstructor;
+        std::shared_ptr<CPtrPropertyConstructor> PtrPropertyConstructor;
+        std::shared_ptr<CPropertyConstructor> PropertyConstructor;
+        auto TopPropertyType = PropertyType;
+        if (!PropertyType->isVoidType())
+        {
+            if (PropertyType->isArrayType()) {
+                ArrayPropertyConstructor = std::make_shared<CArrayPropertyConstructor>();
+                const clang::ArrayType* ArrayPropertyType =
+                    PropertyType->getAsArrayTypeUnsafe();
+                PropertyType = ArrayPropertyType->getElementType();
+            }
+            if (PropertyType->isPointerType()) {
+                PtrPropertyConstructor = std::make_shared<CPtrPropertyConstructor>();
+                PropertyType = PropertyType->getPointeeType();
+            }
+            else if (PropertyType->isReferenceType()) {
+                if (auto OwnerFunctionDecl = dyn_cast<clang::FunctionDecl>(OwnerDecl))
+                {
+                    PropertyFlags.push_back("PF_ReferenceParam");
+                    PtrPropertyConstructor = std::make_shared<CPtrPropertyConstructor>();
+                }
+                else
+                {
+                    throw std::runtime_error("???");
+                }
+                PropertyType = PropertyType->getPointeeType();
+            }
+            if (PropertyType->isBuiltinType()) {
+                auto PropertyTypeInfo =
+                    Context->getTypeInfo(PropertyType.getTypePtr());
+                if (PropertyType->isSignedIntegerType()) {
+                    if (PropertyTypeInfo.Width / 8 == 1)   PropertyConstructor = std::make_shared<CI8PropertyConstructor>();
+                    else if (PropertyTypeInfo.Width / 8 == 2)PropertyConstructor = std::make_shared<CI16PropertyConstructor>();
+                    else if (PropertyTypeInfo.Width / 8 == 4)PropertyConstructor = std::make_shared<CI32PropertyConstructor>();
+                    else if (PropertyTypeInfo.Width / 8 == 8)PropertyConstructor = std::make_shared<CI64PropertyConstructor>();
+                }
+                else if (PropertyType->isUnsignedIntegerType()) {
+                    if (PropertyTypeInfo.Width / 8 == 1)     PropertyConstructor = std::make_shared<CU8PropertyConstructor>();
+                    else if (PropertyTypeInfo.Width / 8 == 2)PropertyConstructor = std::make_shared<CU16PropertyConstructor>();
+                    else if (PropertyTypeInfo.Width / 8 == 4)PropertyConstructor = std::make_shared<CU32PropertyConstructor>();
+                    else if (PropertyTypeInfo.Width / 8 == 8)PropertyConstructor = std::make_shared<CU64PropertyConstructor>();
+                }
+                else if (PropertyType->isFloatingType()) {
+                    if (PropertyTypeInfo.Width / 8 == 4)      PropertyConstructor = std::make_shared<CF32PropertyConstructor>();
+                    else if (PropertyTypeInfo.Width / 8 == 8) PropertyConstructor = std::make_shared<CF64PropertyConstructor>();
+                }
+                else if (PropertyType->isBooleanType()) {
+                    PropertyConstructor = std::make_shared<CBoolPropertyConstructor>();
+                }
+                else {
+                    throw std::runtime_error("???");
+                }
+            }
+            else if (PropertyType->isStructureOrClassType()) {
+                PropertyConstructor = std::make_shared<CClassPropertyConstructor>();
+                clang::CXXRecordDecl* FinalCXXRecordDecl = PropertyType->getAsCXXRecordDecl();
+                if (PropertyType.getAsString() == "std::string") {
+                    PropertyConstructor = std::make_shared<CStrPropertyConstructor>();
+                }
+                else {
+                    // 寻找
+                    auto FindObjectCXXRecordDecl = FinalCXXRecordDecl;
+                    while (FindObjectCXXRecordDecl) {
+                        if (FindObjectCXXRecordDecl->getQualifiedNameAsString() ==
+                            "RtCXX::OObject") {
+                            if (PtrPropertyConstructor)
+                            {
+                                PtrPropertyConstructor = std::make_shared<CObjectPtrPropertyConstructor>();
+                            }
+                            break;
+                        }
+                        if (FindObjectCXXRecordDecl->getNumBases() > 0) {
+                            FindObjectCXXRecordDecl = FindObjectCXXRecordDecl->bases_begin()->getType()->getAsCXXRecordDecl();
+                        }
+                        else {
+                            FindObjectCXXRecordDecl = nullptr;
+                        }
+                    }
+                    auto PropertyConstructorPtr = std::make_shared<CClassPropertyConstructor>();
+                    PropertyConstructor = PropertyConstructorPtr;
+                    PropertyConstructorPtr->ClassDecl = FinalCXXRecordDecl;
+                }
+            }
+            else if (PropertyType->isEnumeralType()) {
+                PropertyConstructor = std::make_shared<CEnumPropertyConstructor>();
+            }
+            else {
+                throw std::runtime_error("???");
+            }
+        }
+        else
+        {
+            PropertyConstructor = std::make_shared<CPropertyConstructor>();
+        }
+        std::shared_ptr<CPropertyConstructor> RootPropertyConstructor;
+        RootPropertyConstructor = PropertyConstructor;
+        if (PtrPropertyConstructor)
+        {
+            RootPropertyConstructor = PtrPropertyConstructor;
+            PtrPropertyConstructor->PointerToProp = PropertyConstructor;
+        }
+        if (ArrayPropertyConstructor)
+        {
+            RootPropertyConstructor = ArrayPropertyConstructor;
+            RootPropertyConstructor = ArrayPropertyConstructor;
+            if (PtrPropertyConstructor)
+            {
+                ArrayPropertyConstructor->ElementProp = PtrPropertyConstructor;
+            }
+            else
+            {
+                ArrayPropertyConstructor->ElementProp = PropertyConstructor;
+            }
+        }
+        RootPropertyConstructor->OwnerDecl = OwnerDecl;
+        RootPropertyConstructor->PropertyDecl = PropertyDecl;
+        if (RootPropertyConstructor == PropertyConstructor)
+        {
 
-      }
-      else if (RootPropertyConstructor == PtrPropertyConstructor)
-      {
+        }
+        else if (RootPropertyConstructor == PtrPropertyConstructor)
+        {
 
-      }
-      else if (RootPropertyConstructor == ArrayPropertyConstructor)
-      {
+        }
+        else if (RootPropertyConstructor == ArrayPropertyConstructor)
+        {
 
-      }
-      std::string PropertyFlagsStr;
-      if (!PropertyFlags.empty())
-      {
-          PropertyFlagsStr = PropertyFlags[0];
-          for (size_t i = 1; i < PropertyFlags.size(); i++)
-          {
-              PropertyFlagsStr += " | ";
-              PropertyFlagsStr += PropertyFlags[i];
-          }
-      }
-      if (PropertyFlagsStr.empty()) PropertyFlagsStr = "PF_None";
-      if (auto OwnerCXXRecordDecl = dyn_cast<clang::CXXRecordDecl>(OwnerDecl))
-      {
-          PropertyCodes.push_back(std::format("        StaticCreateUniqueProperty<{0:s}, {1:s}>(Class, \"{2:s}\", {3:s}, {4:s}, {5:s});\n",
-              OwnerCXXRecordDecl->getQualifiedNameAsString(),
-              "decltype(&" + OwnerCXXRecordDecl->getQualifiedNameAsString() + "::" + PropertyDecl->getNameAsString() + ")",
-              PropertyDecl->getNameAsString(),
-              "offsetof(" + OwnerCXXRecordDecl->getQualifiedNameAsString() + ", " + PropertyDecl->getNameAsString() + ")",
-              PropertyFlagsStr,
-              PropertyCXXRecordDecl ? "\"" + PropertyCXXRecordDecl->getNameAsString() + "\"" : "nullptr"));
-      }
-      if (auto OwnerCXXMethodDecl = dyn_cast<clang::CXXMethodDecl>(OwnerDecl))
-      {
-          unsigned ParameterIndex = -1;
-          if (PropertyDecl) 
-          {
-              if (auto PropertyParmVarDecl = dyn_cast<clang::ParmVarDecl>(PropertyDecl))
-              {
-                  ParameterIndex = PropertyParmVarDecl->getFunctionScopeIndex();
-              }
-          }
-          PropertyCodes.push_back(std::format("        StaticCreateUniqueProperty<{0:s}, {1:s}>(Function, \"{2:s}\", {3:s}, {4:s}, {5:s});\n",
-              "decltype(&" + OwnerCXXMethodDecl->getQualifiedNameAsString() + ")",
-              "TParameterIndex<" + std::to_string(ParameterIndex) + ">",
-              OwnerDecl ? OwnerDecl->getNameAsString() : "",
-              std::to_string(ParameterIndex),
-              PropertyFlagsStr,
-              PropertyCXXRecordDecl ? "\"" + PropertyCXXRecordDecl->getNameAsString() + "\"" : "nullptr"));
-      }
-      //RootPropertyConstructor->ConstructCode(PropertyCodes, PropertyFlags);
-      return PropertyCodes;
-  }
+        }
+        auto PropertyConstructorPtr = PropertyConstructor->CastTo<CClassPropertyConstructor>();
+        std::string PropertyFlagsStr = MakeFlags(PropertyFlags, "PF_None");
+        if (auto OwnerCXXRecordDecl = dyn_cast<clang::CXXRecordDecl>(OwnerDecl))
+        {
+            return std::format("CurrentProperty = StaticCreateUniqueProperty<{:s}, {:s}>(CurrentClass, \"{:s}\", {:s}, {:s}, {:s}, Controller);",
+                UnqiueStructName,
+                "decltype(&" + OwnerCXXRecordDecl->getQualifiedNameAsString() + "::" + PropertyDecl->getNameAsString() + ")",
+                PropertyDecl->getNameAsString(),
+                "offsetof(" + OwnerCXXRecordDecl->getQualifiedNameAsString() + ", " + PropertyDecl->getNameAsString() + ")",
+                PropertyFlagsStr,
+                PropertyConstructorPtr ? "\"" + PropertyConstructorPtr->ClassDecl->getQualifiedNameAsString() + "\"" : "nullptr");
+        }
+        if (auto OwnerCXXMethodDecl = dyn_cast<clang::CXXMethodDecl>(OwnerDecl))
+        {
+            int ParameterIndex = -1;
 
-  virtual void onStartOfTranslationUnit() override 
-  {
+            const clang::ParmVarDecl* CurParmVarDecl = nullptr;
+            if (PropertyDecl)
+            {
+                CurParmVarDecl = dyn_cast<clang::ParmVarDecl>(PropertyDecl);
+            }
+            return std::format("CurrentProperty = StaticCreateUniqueProperty<{:s}, {:s}>(CurrentFunction, \"{:s}\", {:s}, {:s}, {:s}, Controller);",
+                UnqiueStructName,
+                "TConvertToPropertyGetter<" + TopPropertyType.getAsString() + ">",
+                CurParmVarDecl ? CurParmVarDecl->getNameAsString() : "",
+                CurParmVarDecl ? std::to_string(CurParmVarDecl->getFunctionScopeIndex()) : std::to_string(-1),
+                PropertyFlagsStr,
+                PropertyConstructorPtr ? "\"" + PropertyConstructorPtr->ClassDecl->getQualifiedNameAsString() + "\"" : "nullptr");
+        }
+        return "***";
+    }
 
-  }
+    std::string MakeFlags(const std::vector<std::string>& Flags, const std::string& NoneFlag)
+    {
+        std::string FlagsStr;
+        if (!Flags.empty())
+        {
+            FlagsStr = Flags[0];
+            for (size_t i = 1; i < Flags.size(); i++)
+            {
+                FlagsStr += " | ";
+                FlagsStr += Flags[i];
+            }
+            return FlagsStr;
+        }
+        else
+        {
+            return NoneFlag;
+        }
+    }
 
-  virtual void onEndOfTranslationUnit() override {
-      if (RtCXXSourceManager && Context) {
-          for (auto CXXRecordDecl : CXXRecordDecls) {
-              std::unordered_map<std::string, std::string> OutCXXRecordDeclMetadata;
-              if (ParseReflectAnnotation(CXXRecordDecl, OutCXXRecordDeclMetadata)) {
-                  std::vector<std::string> Contexts;
-                  auto BaseIterator = CXXRecordDecl->bases_begin();
-                  if (BaseIterator != CXXRecordDecl->bases_end())
-                  {
-                      auto BaseCXXRecordDecl =
-                          (*BaseIterator).getType()->getAsCXXRecordDecl();
-                      std::unordered_map<std::string, std::string> BaseCXXRecordDeclMetadata;
-                      if (ParseReflectAnnotation(BaseCXXRecordDecl, BaseCXXRecordDeclMetadata)) {
-                          std::string BaseDeclContext =
-                              std::format("        Class.ExtendsClass = {0:s}::StaticClass();\n", BaseCXXRecordDecl->getQualifiedNameAsString());
-                          Contexts.push_back(BaseDeclContext);
-                      }
-                  }
-                  for (; BaseIterator != CXXRecordDecl->bases_end(); BaseIterator++) {
-                  }
+    virtual void onStartOfTranslationUnit() override
+    {
 
-                  for (auto MethodIterator = CXXRecordDecl->method_begin();
-                      MethodIterator != CXXRecordDecl->method_end(); MethodIterator++)
-                  {
-                      auto Method = *MethodIterator;
-                    std::unordered_map<std::string, std::string> MethodMetadata;
-                    if (ParseReflectAnnotation(Method, MethodMetadata)) {
-                        Contexts.push_back(std::format("        StaticCreateUniqueFunction<, >(Class, const std::string& InName, FunctionType FuncPtr, EPropertyFlags InPropertyFlags);\n",
-                            Method->getNameAsString()));
-                        Contexts.push_back(std::format("        static CMetaFunction ____{0:s}(Class, \"{0:s}\", FF_None);\n", Method->getNameAsString()));
-                        Contexts.push_back(std::format("		____{0:s}.SetOwner(&Class);\n", Method->getNameAsString()));
-                        Contexts.push_back(std::format("		Class.InsertFunction(&____{0:s});\n", Method->getNameAsString()));
-                        Contexts.push_back(std::format("        ____{0:s}.bIsStatic = {1:s};\n", Method->getNameAsString(), Method->isStatic() ? "true" : "false"));
-                       // asSMethodPtr<sizeof(void (c::*)())>::Convert(AS_METHOD_AMBIGUITY_CAST(r (c::*)p)(&c::m))
-                        if (Method->isStatic())
-                            Contexts.push_back(std::format("        ____{0:s}.FuncPtr = ;\n", Method->getNameAsString(), ""));
-                        else
-                        {
+    }
+
+    virtual void onEndOfTranslationUnit() override {
+        if (RtCXXSourceManager && Context) {
+            for (auto CXXRecordDecl : CXXRecordDecls) {
+                std::unordered_map<std::string, std::string> OutCXXRecordDeclMetadata;
+                if (ParseReflectAnnotation(CXXRecordDecl, OutCXXRecordDeclMetadata)) {
+                    WriteCodeLine(std::format("RtCXX::CMetaClass* {0:s}::GVar_StaticClass = {0:s}::StaticClass();", CXXRecordDecl->getQualifiedNameAsString()));
+                    WriteCodeLine(std::format("RtCXX::CMetaClass* {0:s}::StaticClass()", CXXRecordDecl->getQualifiedNameAsString()));
+                    WriteCodeLine(std::format("{{", CXXRecordDecl->getQualifiedNameAsString()));
+                    WriteCodeLine(std::format("    using namespace RtCXX;", CXXRecordDecl->getQualifiedNameAsString()));
+                    WriteCodeLine(std::format("    auto Controller = GetControllerPtr();", CXXRecordDecl->getQualifiedNameAsString()));
+                    WriteCodeLine(std::format("    static CMetaClass* ClassPtr = [&]() -> CMetaClass* {{", CXXRecordDecl->getQualifiedNameAsString()));
+                    WriteCodeLine(std::format("        CMetaClass* CurrentClass = nullptr;", CXXRecordDecl->getQualifiedNameAsString()));
+                    WriteCodeLine(std::format("        CMetaFunction* CurrentFunction = nullptr;", CXXRecordDecl->getQualifiedNameAsString()));
+                    WriteCodeLine(std::format("        CMetaProperty* CurrentProperty = nullptr;", CXXRecordDecl->getQualifiedNameAsString()));
+                    PushIndent(8);
+                    std::string BaseClassName;
+                    std::vector<std::string> InterfacesName;
+                    auto BaseIterator = CXXRecordDecl->bases_begin();
+                    if (BaseIterator != CXXRecordDecl->bases_end())
+                    {
+                        auto BaseCXXRecordDecl =
+                            (*BaseIterator).getType()->getAsCXXRecordDecl();
+                        std::unordered_map<std::string, std::string> BaseCXXRecordDeclMetadata;
+                        if (ParseReflectAnnotation(BaseCXXRecordDecl, BaseCXXRecordDeclMetadata)) {
+                            BaseClassName = BaseCXXRecordDecl->getQualifiedNameAsString();
+                        }
+                        for (; BaseIterator != CXXRecordDecl->bases_end(); BaseIterator++) {
+
+                        }
+                    }
+                    std::string InterfacesNameStr = "{ ";
+                    for (size_t i = 0; i < InterfacesName.size(); i++)
+                    {
+                        InterfacesNameStr += "\"" + InterfacesName[i] + "\"";
+                        InterfacesNameStr += ", ";
+                    }
+                    InterfacesNameStr += "nullptr }";
+                    WriteCodeLine(std::format("CurrentClass = StaticCreateUniqueClass<{0:s}>(nullptr, \"{0:s}\", CF_None, {1:s}, {2:s}, Controller);", 
+                        CXXRecordDecl->getQualifiedNameAsString(), 
+                        BaseClassName.empty() ? "nullptr" : "\"" + BaseClassName + "\"",
+                        InterfacesNameStr));
+
+                    for (auto MethodIterator = CXXRecordDecl->method_begin();
+                        MethodIterator != CXXRecordDecl->method_end(); MethodIterator++)
+                    {
+                        auto Method = *MethodIterator;
+                        std::unordered_map<std::string, std::string> MethodMetadata;
+                        if (ParseReflectAnnotation(Method, MethodMetadata)) {
+                            WriteCodeLine("{");
+                            PushIndent();
+                            std::vector<std::string> FunctionFlags;
                             std::string ParamStr;
+                            if (Method->isStatic()) FunctionFlags.push_back("FF_Global");
                             auto ParamIterator = Method->param_begin();
                             if (ParamIterator != Method->param_end())
                             {
                                 auto Param = *ParamIterator;
                                 ParamStr += Param->getType().getAsString();
                                 ParamIterator++;
+                                for (; ParamIterator != Method->param_end(); ParamIterator++)
+                                {
+                                    auto Param = *ParamIterator;
+                                    ParamStr += ", ";
+                                    ParamStr += Param->getType().getAsString();
+                                }
                             }
-                            for (; ParamIterator != Method->param_end(); ParamIterator++)
+                            std::string To_asSFuncPtr = "asMETHODPR("
+                                + CXXRecordDecl->getQualifiedNameAsString() + ", "
+                                + Method->getNameAsString() + ", "
+                                + "(" + ParamStr + ")" + ", "
+                                + Method->getReturnType().getAsString() + ")";
+                            std::string MethodUnqiueStructName = InsertUnqiueStruct(Method);
+                            WriteCodeLine(std::format("CurrentFunction = StaticCreateUniqueFunction<{:s}, {:s}>(CurrentClass, \"{:s}\", {:s}, {:s}, Controller);",
+                                MethodUnqiueStructName,
+                                CXXRecordDecl->getQualifiedNameAsString(),
+                                Method->getNameAsString(),
+                                To_asSFuncPtr,
+                                MakeFlags(FunctionFlags, "FF_None")));
+
+                            std::vector<std::string> MethodReturnPropertyFlags = { "PF_Param", "PF_OutParam", "PF_ReturnParam" };
+                            WriteCodeLine(ParseProperty(Method, nullptr, Method->getReturnType(), MethodReturnPropertyFlags, InsertUnqiueStruct(Method, true)));
+                            for (auto ParamIterator = Method->parameters().rbegin(); ParamIterator != Method->parameters().rend(); ParamIterator++)
                             {
                                 auto Param = *ParamIterator;
-                                ParamStr += ", ";
-                                ParamStr += Param->getType().getAsString();
+                                std::vector<std::string> MethodParamPropertyFlags = { "PF_Param" };
+                                WriteCodeLine(ParseProperty(Method, Param, Param->getType(), MethodParamPropertyFlags, InsertUnqiueStruct(Param)));
                             }
-                            std::string SignatureStr = std::format("asMETHODPR({0:s}, {1:s}, ({2:s}), {3:s})",
-                                Method->getParent()->getQualifiedNameAsString(),
-                                Method->getNameAsString(),
-                                ParamStr,
-                                Method->getReturnType().getAsString());
-                            Contexts.push_back(std::format("        ____{0:s}.FuncPtr = {1:s};\n", Method->getNameAsString(), SignatureStr));
+                            PopIndent();
+                            WriteCodeLine("}");
                         }
-
-
-
-                        std::vector<std::string> MethodReturnPropertyFlags = { "PF_Param", "PF_OutParam", "PF_ReturnParam"};
-                        std::vector<std::string> CodeLines = ParseProperty(Method, nullptr, Method->getReturnType(), MethodReturnPropertyFlags);
-                        Contexts.insert(Contexts.end(), CodeLines.begin(), CodeLines.end());
-                        for (auto ParamIterator = Method->param_begin(); ParamIterator != Method->param_end(); ParamIterator++)
-                        {
-                            auto Param = *ParamIterator;
-                            std::vector<std::string> MethodParamPropertyFlags = { "PF_Param" };
-                            CodeLines = ParseProperty(Method, Param, Param->getType(), MethodParamPropertyFlags);
-                            Contexts.insert(Contexts.end(), CodeLines.begin(), CodeLines.end());
-                        }
-                        Contexts.push_back(std::format("		Controller->RegisterMetadata(&____{0:s});\n", Method->getNameAsString()));
-                        Contexts.push_back(std::format("\n"));
                     }
-                  }
 
-                  for (auto FieldIterator = CXXRecordDecl->field_begin();
-                      FieldIterator != CXXRecordDecl->field_end(); FieldIterator++) {
-                      auto Field = *FieldIterator;
-                      std::unordered_map<std::string, std::string> FieldMetadata;
-                      if (ParseReflectAnnotation(Field, FieldMetadata)) 
-                      {
-                          std::string PropertyDeclContext;
-                          clang::QualType FieldType = Field->getType();
-                          std::shared_ptr<CArrayPropertyConstructor> ArrayPropertyConstructor;
-                          auto PropCodes = ParseProperty(CXXRecordDecl, Field, Field->getType());
-                          Contexts.insert(Contexts.end(), PropCodes.begin(), PropCodes.end());
-                          Contexts.push_back(std::format("\n"));
-                      }
-                  }
-                  std::string ContextsBuffer;
-                  for (size_t i = 0; i < Contexts.size(); i++) {
-                      ContextsBuffer.append(Contexts[i]);
-                  }
-                  RtCXXCppFileContext += std::format(
-                      R"(
-RtCXX::CMetaClass* {0:s}::SelfClass = {0:s}::StaticClass(); 
-RtCXX::CMetaClass* {0:s}::StaticClass()                     
-{{
-    using namespace RtCXX;
-    auto Controller = GetControllerPtr();
-	static CMetaClass* ClassPtr = [&]() -> CMetaClass* {{
-		static TClass<{0:s}> Class("{0:s}", Controller);
+                    for (auto FieldIterator = CXXRecordDecl->field_begin();
+                        FieldIterator != CXXRecordDecl->field_end(); FieldIterator++) {
+                        auto Field = *FieldIterator;
+                        std::unordered_map<std::string, std::string> FieldMetadata;
+                        if (ParseReflectAnnotation(Field, FieldMetadata))
+                        {
+                            WriteCodeLine(ParseProperty(CXXRecordDecl, Field, Field->getType(), {}, InsertUnqiueStruct(Field)));
+                        }
+                    }
+                    PopIndent(8);
+                    WriteCodeLine(std::format("        return CurrentClass;", CXXRecordDecl->getQualifiedNameAsString()));
+                    WriteCodeLine(std::format("    }}();", CXXRecordDecl->getQualifiedNameAsString()));
+                    WriteCodeLine(std::format("    return ClassPtr;", CXXRecordDecl->getQualifiedNameAsString()));
+                    WriteCodeLine(std::format("}};", CXXRecordDecl->getQualifiedNameAsString()));
+                }
+            }
+        }
+        
+        for (size_t i = 0; i < CodeLines.size(); i++)
+        {
+            RtCXXCppFileContext += CodeLines[i];
+        }
+        Context = nullptr;
+        RtCXXSourceManager = nullptr;
+    }
 
-{1:s}
-        Controller->RegisterMetadata(&Class);
-		return &Class;
-	}}();
-    return ClassPtr;
-}};
-)",
-CXXRecordDecl->getQualifiedNameAsString(), ContextsBuffer);
-              }
-          }
-      }
-      Context = nullptr;
-      RtCXXSourceManager = nullptr;
-  }
+    std::string InsertUnqiueStruct(const clang::NamedDecl* InTarget, bool bIsFunctionReturnValue = false)
+    {
+        std::string OwnerName;
+        std::string TargetNmae;
+        std::string UnqiueAnonymousStructName;
 
-  std::unordered_set<clang::CXXRecordDecl const *> CXXRecordDecls;
-  std::unordered_map<clang::FunctionDecl const *, clang::CXXRecordDecl const *>
-      FunctionDeclMap;
-  std::unordered_map<clang::FieldDecl const *, clang::CXXRecordDecl const *>
-      FieldDeclMap;
+        const clang::CXXRecordDecl* CastCXXRecordDecl = nullptr;
+        const clang::CXXMethodDecl* CastCXXMethodDecl = nullptr;
+        const clang::ParmVarDecl* CastParmVarDecl = nullptr;
+        const clang::FieldDecl* CastFieldDecl = nullptr;
+        if (bIsFunctionReturnValue)
+        {
+            UnqiueAnonymousStructName += "FR"; // FuncRet
+            if (auto CastFunctionDecl = dyn_cast<clang::FunctionDecl>(InTarget))
+            {
+                UnqiueAnonymousStructName += "____";
+                TargetNmae = CastFunctionDecl->getQualifiedNameAsString();
+                std::transform(TargetNmae.cbegin(), TargetNmae.cend(), TargetNmae.begin(), [](unsigned char c) { return c == ':' ? '_' : c; });
+                UnqiueAnonymousStructName += TargetNmae;
+                UnqiueAnonymousStructName += "__Return";
+                CodeLines.insert(CodeLines.begin(), std::format("struct {0:s} {{}};\n", UnqiueAnonymousStructName));
+                return UnqiueAnonymousStructName;
+            }
+            else
+            {
+                throw std::runtime_error("???");
+            }
+        }
+        else if (CastCXXRecordDecl = dyn_cast<clang::CXXRecordDecl>(InTarget))
+        {
+            UnqiueAnonymousStructName += "GC";
+        }
+        else if (CastCXXMethodDecl = dyn_cast<clang::CXXMethodDecl>(InTarget))
+        {
+            UnqiueAnonymousStructName += "CF";
+        }
+        else if (CastParmVarDecl = dyn_cast<clang::ParmVarDecl>(InTarget))
+        {
+            UnqiueAnonymousStructName += "FP";
+        }
+        else if (CastFieldDecl = dyn_cast<clang::FieldDecl>(InTarget))
+        {
+            UnqiueAnonymousStructName += "GP";
 
-  std::vector<clang::EnumDecl const *> EnumDecls;
-  clang::ASTContext *Context{nullptr};
-  clang::SourceManager *RtCXXSourceManager{nullptr};
+        }
+        else
+            throw std::runtime_error("???");
+        UnqiueAnonymousStructName += "____";
+
+        if (CastParmVarDecl)
+        {
+            const clang::FunctionDecl* ThisFunctionDecl = static_cast<const clang::FunctionDecl*>(CastParmVarDecl->getParentFunctionOrMethod());
+            TargetNmae = ThisFunctionDecl->getQualifiedNameAsString();
+        }
+        else
+        {
+            TargetNmae = InTarget->getQualifiedNameAsString();
+        }
+        std::transform(TargetNmae.cbegin(), TargetNmae.cend(), TargetNmae.begin(), [](unsigned char c) { return c == ':' ? '_' : c; });
+        UnqiueAnonymousStructName += TargetNmae;
+
+        if (CastParmVarDecl)
+        {
+            UnqiueAnonymousStructName += "__Param" + std::to_string(CastParmVarDecl->getFunctionScopeIndex());
+        }
+        CodeLines.insert(CodeLines.begin(), std::format("struct {0:s} {{}};\n", UnqiueAnonymousStructName));
+        return UnqiueAnonymousStructName;
+    }
+
+    void PushIndent(int InIndentWidth = 4)
+    {
+        for (size_t i = 0; i < InIndentWidth; i++)
+        {
+            CurrentIndentWidth.push_back(' ');
+        }
+    }
+    void WriteCodeLine(const std::string& InCodeLine)
+    {
+        CodeLines.push_back(CurrentIndentWidth + InCodeLine + "\n");
+    }
+    void PopIndent(int InIndentWidth = 4)
+    {
+        for (size_t i = 0; i < InIndentWidth; i++)
+        {
+            CurrentIndentWidth.pop_back();
+        }
+    }
+
+    std::string CurrentIndentWidth;
+    std::vector<std::string> CodeLines;
+
+    std::unordered_set<clang::CXXRecordDecl const*> CXXRecordDecls;
+    std::unordered_map<clang::FunctionDecl const*, clang::CXXRecordDecl const*> FunctionDeclMap;
+    std::unordered_map<clang::FieldDecl const*, clang::CXXRecordDecl const*>FieldDeclMap;
+
+    std::vector<clang::EnumDecl const*> EnumDecls;
+    clang::ASTContext* Context{ nullptr };
+    clang::SourceManager* RtCXXSourceManager{ nullptr };
 };

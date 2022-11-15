@@ -3,7 +3,7 @@
 #include <any>
 #include <string>
 #include <unordered_map>
- 
+
 RTCXX_NAMESPACE_BEGIN
 
 enum EMetadataCastFlags : U32
@@ -65,17 +65,16 @@ public:                                                                         
 	{                                                                                                 \
 		return TClass::StaticCastFlag() | SuperClassStaticCastFlags<TSupperClass>();                  \
 	}                                                                                                 \
-	static CMetadataClass* SelfMetadataClass;                                                         \
+	static CMetadataClass* GVar_StaticMetadataClass;                                                  \
 	static CMetadataClass* StaticMetadataClass();
 
 #define IMPLEMENT_METADATA_CLASS(TClass)                                                           \
-	CMetadataClass* TClass::SelfMetadataClass = TClass::StaticMetadataClass();                             \
-	CMetadataClass* TClass::StaticMetadataClass()                                                         \
+	CMetadataClass* TClass::GVar_StaticMetadataClass = TClass::StaticMetadataClass();              \
+	CMetadataClass* TClass::StaticMetadataClass()                                                  \
 	{                                                                                              \
 		static CMetadataClass LMetadataClass(TClass::StaticCastFlag(), TClass::StaticCastFlags()); \
 		return &LMetadataClass;                                                                    \
 	}
-
 
 #define DECLARE_METADATA_CONSTRUCT(TClass, TSupperClass)                                               \
 	FORCEINLINE TClass(CMetadata* InOwner, const std::string& InName)                                  \
@@ -94,7 +93,7 @@ public:
 	template <typename T>
 	T* CastTo()
 	{
-		if (MetadataClass->MetadataCastFlags & T::StaticMetaClass().MetadataCastFlag)
+		if (MetadataClass->MetadataCastFlags & T::StaticMetadataClass()->MetadataCastFlag)
 			return static_cast<T*>(this);
 		return nullptr;
 	}
@@ -102,13 +101,15 @@ public:
 	//DECLARE_METADATA_STATIC_CAST_FLAG(CMetadata)
 
 public:
-	CMetadata(CMetadata* InOwner, const std::string& InName)
-		: Name(InName)
+	FORCEINLINE CMetadata(CMetadata* InOwner, const std::string& InName)
+		: Owner(InOwner)
+		, Name(InName)
 		, MetadataClass(StaticMetadataClass())
 	{
 	}
-	CMetadata(CMetadata* InOwner, const std::string& InName, CMetadataClass* InMetadataClass)
-		: Name(InName)
+	FORCEINLINE CMetadata(CMetadata* InOwner, const std::string& InName, CMetadataClass* InMetadataClass)
+		: Owner(InOwner)
+		, Name(InName)
 		, MetadataClass(InMetadataClass)
 	{
 	}
@@ -118,7 +119,7 @@ public:
 	CMetadata& operator=(CMetadata&&) = delete;
 	virtual ~CMetadata() {}
 
-	std::string GetFullName()
+	FORCEINLINE std::string GetFullName()
 	{
 		std::string FullName = Name;
 		CMetadata* Owner	 = GetOwner();
@@ -130,17 +131,17 @@ public:
 		return FullName;
 	}
 
-	I32 GetId() const { return Id; }
-	const std::string& GetName() const { return Name; }
-	CMetadata* GetOwner() const { return Owner; }
+	FORCEINLINE I32 GetId() const { return Id; }
+	FORCEINLINE const std::string& GetName() const { return Name; }
+	FORCEINLINE CMetadata* GetOwner() const { return Owner; }
 	//U64 GetCastFlags() { return CastFlags; }
 
-	bool HasMetadata(const std::string& InName) const
+	FORCEINLINE bool HasMetadata(const std::string& InName) const
 	{
 		return MetadataMap.find(InName) != MetadataMap.end();
 	}
 
-	std::any GetMetadata(const std::string& InName) const
+	FORCEINLINE std::any GetMetadata(const std::string& InName) const
 	{
 		auto FindIterator = MetadataMap.find(InName);
 		if (FindIterator != MetadataMap.end())
@@ -150,12 +151,12 @@ public:
 		return std::any();
 	}
 
-	void SetMetadata(const std::string& InName, const std::any& InMetadata)
+	FORCEINLINE void SetMetadata(const std::string& InName, const std::any& InMetadata)
 	{
 		MetadataMap.insert_or_assign(InName, InMetadata);
 	}
 
-	void SetMetadata(const std::string& InName, std::any&& InMetadata)
+	FORCEINLINE void SetMetadata(const std::string& InName, std::any&& InMetadata)
 	{
 		MetadataMap.insert_or_assign(InName, std::move(InMetadata));
 	}
