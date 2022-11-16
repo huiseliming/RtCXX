@@ -235,9 +235,18 @@ public:
 	}
 };
 
+template<typename UnqiueAnonymousType>
+FORCEINLINE void StaticSetConstAttrs(CMetadata* InMetadata)
+{ 
+	for (size_t i = 0; i < UnqiueAnonymousType::ConstAttrs.size(); i++)
+	{
+		InMetadata->SetAttr(UnqiueAnonymousType::ConstAttrs[i].first, std::get<UnqiueAnonymousType::ConstAttrs[i].second.index()>(UnqiueAnonymousType::ConstAttrs[i].second));
+	}
+}
+
 RTCXX_API void SetInheritanceRelationship(CMetaClass* InMetaClass, const char* InBaseClassName, CController* InController);
 
-template<typename T>
+template<typename UnqiueAnonymousType, typename T>
 FORCEINLINE auto StaticCreateUniqueClass(CMetadata* InOwner, const std::string& InName, EClassFlags InClassFlags, const char* InBaseClassName, const char* InInterfaceNames[], CController* InController)
 {
 	assert(InController);
@@ -252,6 +261,7 @@ FORCEINLINE auto StaticCreateUniqueClass(CMetadata* InOwner, const std::string& 
 	//	InterfaceName?
 	//	InterfaceName++;
 	//}
+	StaticSetConstAttrs<UnqiueAnonymousType>(&LClass);
 	InController->RegisterMetadata(&LClass);
 	return &LClass;
 }
@@ -386,6 +396,7 @@ FORCEINLINE auto StaticCreateUniqueProperty(CMetadata* InOwner, const std::strin
 	{
 		OwnerFunction->InsertProperty(&LProperty);
 	}
+	StaticSetConstAttrs<UnqiueAnonymousType>(&LProperty);
 	InController->RegisterMetadata(&LProperty);
 	return &LProperty;
 }
@@ -412,6 +423,7 @@ FORCEINLINE auto StaticCreateUniqueFunction(CMetadata* InOwner, const std::strin
 	{
 		OwnerClass->InsertFunction(&LFunction);
 	}
+	StaticSetConstAttrs<UnqiueAnonymousType>(&LFunction);
 	InController->RegisterMetadata(&LFunction);
 	return &LFunction;
 }

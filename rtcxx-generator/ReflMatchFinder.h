@@ -222,8 +222,6 @@ public:
         }
         if (auto OwnerCXXMethodDecl = dyn_cast<clang::CXXMethodDecl>(OwnerDecl))
         {
-            int ParameterIndex = -1;
-
             const clang::ParmVarDecl* CurParmVarDecl = nullptr;
             if (PropertyDecl)
             {
@@ -268,8 +266,8 @@ public:
         if (RtCXXSourceManager && Context) {
             for (auto CXXRecordDecl : CXXRecordDecls) {
                 std::string CXXRecordDeclMetaTag;
-                std::vector<std::pair<std::string, std::string>> CXXRecordDeclMetadata;
-                if (ParseReflectAnnotation(CXXRecordDecl, CXXRecordDeclMetaTag, CXXRecordDeclMetadata)) {
+                std::vector<std::pair<std::string, std::string>> CXXRecordDeclAttrs;
+                if (ParseReflectAnnotation(CXXRecordDecl, CXXRecordDeclMetaTag, CXXRecordDeclAttrs)) {
                     bool bIsClass = CXXRecordDeclMetaTag == "Class";
                     bool bIsStruct = CXXRecordDeclMetaTag == "Struct";
                     //bool bIsEnum = RtCXXMetadataType == "Enum";
@@ -292,8 +290,8 @@ public:
                         {
                             auto BaseCXXRecordDecl = (*BaseIterator).getType()->getAsCXXRecordDecl();
                             std::string BaseCXXRecordDeclMetaTag;
-                            std::vector<std::pair<std::string, std::string>> BaseCXXRecordDeclMetadata;
-                            if (ParseReflectAnnotation(BaseCXXRecordDecl, BaseCXXRecordDeclMetaTag, BaseCXXRecordDeclMetadata, 0)) {
+                            std::vector<std::pair<std::string, std::string>> BaseCXXRecordDeclAttrs;
+                            if (ParseReflectAnnotation(BaseCXXRecordDecl, BaseCXXRecordDeclMetaTag, BaseCXXRecordDeclAttrs, 0)) {
                                 if (CXXRecordDeclMetaTag == "Class")
                                 {
                                     BaseClassName = BaseCXXRecordDecl->getQualifiedNameAsString();
@@ -310,7 +308,10 @@ public:
                             InterfacesNameStr += ", ";
                         }
                         InterfacesNameStr += "nullptr }";
-                        WriteCodeLine(std::format("CurrentClass = StaticCreateUniqueClass<{0:s}>(nullptr, \"{0:s}\", CF_None, {1:s}, {2:s}, Controller);",
+                        std::string UnqiueStructName = InsertUnqiueStruct(CXXRecordDecl, CXXRecordDeclAttrs);
+                        WriteCodeLine(std::format("CurrentClass = StaticCreateUniqueClass<{:s}, {:s}>(nullptr, \"{:s}\", CF_None, {:s}, {:s}, Controller);",
+                            UnqiueStructName,
+                            CXXRecordDecl->getQualifiedNameAsString(),
                             CXXRecordDecl->getQualifiedNameAsString(),
                             BaseClassName.empty() ? "nullptr" : "\"" + BaseClassName + "\"",
                             InterfacesNameStr));
@@ -319,8 +320,8 @@ public:
                         {
                             auto Method = *MethodIterator;
                             std::string MethodMetaTag;
-                            std::vector<std::pair<std::string, std::string>> MethodMetadata;
-                            if (ParseReflectAnnotation(Method, MethodMetaTag, MethodMetadata) && MethodMetaTag == "Function") {
+                            std::vector<std::pair<std::string, std::string>> MethodAttrs;
+                            if (ParseReflectAnnotation(Method, MethodMetaTag, MethodAttrs) && MethodMetaTag == "Function") {
                                 WriteCodeLine("{");
                                 PushIndent();
                                 std::vector<std::string> FunctionFlags;
@@ -344,7 +345,7 @@ public:
                                     + Method->getNameAsString() + ", "
                                     + "(" + ParamStr + ")" + ", "
                                     + Method->getReturnType().getAsString() + ")";
-                                std::string MethodUnqiueStructName = InsertUnqiueStruct(Method);
+                                std::string MethodUnqiueStructName = InsertUnqiueStruct(Method, MethodAttrs);
                                 WriteCodeLine(std::format("CurrentFunction = StaticCreateUniqueFunction<{:s}, {:s}>(CurrentClass, \"{:s}\", {:s}, {:s}, Controller);",
                                     MethodUnqiueStructName,
                                     CXXRecordDecl->getQualifiedNameAsString(),
@@ -353,7 +354,7 @@ public:
                                     MakeFlags(FunctionFlags, "FF_None")));
 
                                 std::vector<std::string> MethodReturnPropertyFlags = { "PF_Param", "PF_OutParam", "PF_ReturnParam" };
-                                WriteCodeLine(ParseProperty(Method, nullptr, Method->getReturnType(), MethodReturnPropertyFlags, InsertUnqiueStruct(Method, true)));
+                                WriteCodeLine(ParseProperty(Method, nullptr, Method->getReturnType(), MethodReturnPropertyFlags, InsertUnqiueStruct(Method, {}, true)));
                                 for (auto ParamIterator = Method->parameters().rbegin(); ParamIterator != Method->parameters().rend(); ParamIterator++)
                                 {
                                     auto Param = *ParamIterator;
@@ -369,10 +370,10 @@ public:
                         FieldIterator != CXXRecordDecl->field_end(); FieldIterator++) {
                         auto Field = *FieldIterator;
                         std::string FieldMetaTag;
-                        std::vector<std::pair<std::string, std::string>> FieldMetadata;
-                        if (ParseReflectAnnotation(Field, FieldMetaTag, FieldMetadata) && FieldMetaTag == "Property")
+                        std::vector<std::pair<std::string, std::string>> FieldAttrs;
+                        if (ParseReflectAnnotation(Field, FieldMetaTag, FieldAttrs) && FieldMetaTag == "Property")
                         {
-                            WriteCodeLine(ParseProperty(CXXRecordDecl, Field, Field->getType(), {}, InsertUnqiueStruct(Field)));
+                            WriteCodeLine(ParseProperty(CXXRecordDecl, Field, Field->getType(), {}, InsertUnqiueStruct(Field, FieldAttrs)));
                         }
                     }
                     PopIndent(8);
@@ -392,7 +393,7 @@ public:
         RtCXXSourceManager = nullptr;
     }
 
-    std::string InsertUnqiueStruct(const clang::NamedDecl* InTarget, bool bIsFunctionReturnValue = false)
+    std::string InsertUnqiueStruct(const clang::NamedDecl* InTarget, const std::vector<std::pair<std::string, std::string>>& Attrs = {}, bool bIsFunctionReturnValue = false)
     {
         std::string OwnerName;
         std::string TargetNmae;
@@ -457,7 +458,22 @@ public:
         {
             UnqiueAnonymousStructName += "__Param" + std::to_string(CastParmVarDecl->getFunctionScopeIndex());
         }
-        CodeLines.insert(CodeLines.begin(), std::format("struct {0:s} {{}};\n", UnqiueAnonymousStructName));
+
+        std::vector<std::string> UnqiueStructCode;
+        UnqiueStructCode.push_back(std::format("struct {0:s}\n", UnqiueAnonymousStructName));
+        UnqiueStructCode.push_back(std::format("{{\n"));
+        if (!CastParmVarDecl)
+        {
+            UnqiueStructCode.push_back(std::format("    constexpr static std::array<RtCXX::CMetadata::ConstAttrType, {:d}> ConstAttrs = {{\n", Attrs.size()));
+            for (size_t i = 0; i < Attrs.size(); i++)
+            {
+                UnqiueStructCode.push_back(std::format("        std::pair(\"{0:s}\", {1:s}),\n", Attrs[i].first, Attrs[i].second));
+            }
+            UnqiueStructCode.push_back(std::format("    }};\n"));
+        }
+        UnqiueStructCode.push_back(std::format("}};\n"));
+        CodeLines.insert(CodeLines.begin(), UnqiueStructCode.begin(), UnqiueStructCode.end());
+
         return UnqiueAnonymousStructName;
     }
 
@@ -495,7 +511,6 @@ public:
 
 bool SplitAttrStr(const std::string& AttrStr, std::vector<std::pair<std::string, std::string>>& KVStrs, int32_t MaxParsedMetadataCounter)
 {
-    int Index = 0;
     enum EWhatToFind
     {
         WTF_Key,

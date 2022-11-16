@@ -15,7 +15,6 @@ CController::CController()
 {
 	ScriptEngine = asCreateScriptEngine();
 	RegisterStdString(ScriptEngine);
-	
 	//TClass<void>       ::CreateStatic("void",    this);
 	//TClass<I8>         ::CreateStatic("I8",      this);
 	//TClass<I16>        ::CreateStatic("I16",     this);

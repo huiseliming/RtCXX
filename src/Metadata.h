@@ -2,6 +2,7 @@
 #include "Fwd.h"
 #include <any>
 #include <string>
+#include <variant>
 #include <unordered_map>
 
 RTCXX_NAMESPACE_BEGIN
@@ -99,8 +100,6 @@ public:
 		return nullptr;
 	}
 
-	//DECLARE_METADATA_STATIC_CAST_FLAG(CMetadata)
-
 public:
 	FORCEINLINE CMetadata(CMetadata* InOwner, const std::string& InName)
 		: Owner(InOwner)
@@ -137,30 +136,78 @@ public:
 	FORCEINLINE CMetadata* GetOwner() const { return Owner; }
 	//U64 GetCastFlags() { return CastFlags; }
 
-	FORCEINLINE bool HasMetadata(const std::string& InName) const
+	FORCEINLINE bool HasAttr(const std::string& InName, const std::any** OutAttrAny = nullptr) const
 	{
-		return MetadataMap.find(InName) != MetadataMap.end();
+		for (auto& Attribute : Attributes)
+		{
+			if (InName == Attribute.first)
+			{
+				if (OutAttrAny)
+				{
+					*OutAttrAny = &Attribute.second;
+				}
+			}
+			return true;
+		}
+		return false;
 	}
 
-	FORCEINLINE std::any GetMetadata(const std::string& InName) const
+	FORCEINLINE std::any GetAttr(const std::string& InName) const
 	{
-		auto FindIterator = MetadataMap.find(InName);
-		if (FindIterator != MetadataMap.end())
+		const std::any* AttrAnyPtr = nullptr;
+		if (HasAttr(InName, &AttrAnyPtr))
 		{
-			return MetadataMap.find(InName)->second;
+			return *AttrAnyPtr;
 		}
 		return std::any();
 	}
 
-	FORCEINLINE void SetMetadata(const std::string& InName, const std::any& InMetadata)
+	template<typename T>
+	FORCEINLINE T GetAttrAs(const std::string& InName) const
 	{
-		MetadataMap.insert_or_assign(InName, InMetadata);
+		const std::any* AttrAnyPtr = nullptr;
+		if (HasAttr(InName, &AttrAnyPtr))
+		{
+			static_assert(std::is_arithmetic_v<T> || std::is_same_v<T, const char*> || std::is_same_v<T, std::string>);
+			if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, const char*>)
+			{
+				if (AttrAnyPtr->type() == typeid(T)) return std::any_cast<T>(*AttrAnyPtr);
+			}
+			else
+			{
+				if (AttrAnyPtr->type() == typeid(const char*)) return std::any_cast<const char*>(*AttrAnyPtr);
+				if (AttrAnyPtr->type() == typeid(std::string)) return std::any_cast<std::string>(*AttrAnyPtr);
+			}
+		}
+		return T();
 	}
 
-	FORCEINLINE void SetMetadata(const std::string& InName, std::any&& InMetadata)
+	FORCEINLINE void SetAttr(const std::string& InName, const std::any& InValue)
 	{
-		MetadataMap.insert_or_assign(InName, std::move(InMetadata));
+		const std::any* AttrAnyPtr = nullptr;
+		if (HasAttr(InName, &AttrAnyPtr))
+			*const_cast<std::any*>(AttrAnyPtr) = InValue;
+		else
+			Attributes.push_back(std::pair(InName, InValue));
 	}
+
+	FORCEINLINE void SetAttr(const std::string& InName, std::any&& InValue)
+	{
+		const std::any* AttrAnyPtr = nullptr;
+		if (HasAttr(InName, &AttrAnyPtr))
+			*const_cast<std::any*>(AttrAnyPtr) = std::move(InValue);
+		else
+			Attributes.push_back(std::pair(InName, std::move(InValue)));
+	}
+
+	template<typename T>
+	FORCEINLINE void SetAttrValue(const std::string& InName, const T& InValue)
+	{
+		static_assert(std::is_arithmetic_v<T> || std::is_same_v<T, const char*> || std::is_same_v<T, std::string>);
+		SetAttr(InName, InValue);
+	}
+
+	FORCEINLINE void SetAttrValue(const std::string& InName, std::string&& InValue) { SetAttr(InName, std::move(InValue)); }
 
 public:
 	void SetName(const std::string& InName) { Name = InName; }
@@ -172,10 +219,15 @@ protected:
 	std::string Name;
 	CMetadataClass* MetadataClass;
 	//EMetadataCastFlags CastFlags;
-	std::unordered_map<std::string, std::any> MetadataMap;
+
+	std::vector<std::pair<std::string, std::any>> Attributes;
 
 private:
 	friend class CController;
+
+public:
+	using ConstAttrValueType = std::variant<Boolean, I8, I16, I32, I64, U8, U16, U32, U64, F32, F64, const char*>;
+	using ConstAttrType = std::pair<const char*, ConstAttrValueType>;
 };
 
 RTCXX_NAMESPACE_END

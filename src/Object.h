@@ -1,5 +1,7 @@
 #pragma once
 #include "Templates/SharedObjectPtr.h"
+#include <any>
+#include <variant>
 
 RTCXX_NAMESPACE_BEGIN
 

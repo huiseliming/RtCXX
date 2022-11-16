@@ -26,3 +26,5 @@ struct TBytesToSizeType<8>
 {
 	using Type = U64;
 };
+
+using PointerSizeType = TBytesToSizeType<sizeof(void*)>::Type;
