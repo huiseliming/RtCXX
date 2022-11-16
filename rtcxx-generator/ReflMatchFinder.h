@@ -383,7 +383,7 @@ public:
                 }
             }
         }
-        
+        WriteCodeLineFront(std::format("#include \"GeneratorSupport.h\""));
         for (size_t i = 0; i < CodeLines.size(); i++)
         {
             RtCXXCppFileContext += CodeLines[i];
@@ -475,7 +475,6 @@ public:
         }
         UnqiueStructCode.push_back(std::format("}};\n"));
         CodeLines.insert(CodeLines.begin(), UnqiueStructCode.begin(), UnqiueStructCode.end());
-
         return UnqiueAnonymousStructName;
     }
 
@@ -485,6 +484,10 @@ public:
         {
             CurrentIndentWidth.push_back(' ');
         }
+    }
+    void WriteCodeLineFront(const std::string& InCodeLine)
+    {
+        CodeLines.insert(CodeLines.begin(), CurrentIndentWidth + InCodeLine + "\n");
     }
     void WriteCodeLine(const std::string& InCodeLine)
     {

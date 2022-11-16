@@ -5,6 +5,7 @@
 #include <fmt/format.h>
 #include <source_location>
 #include <stdint.h>
+#include "Templates/Null.h"
 
 #define ASSERT_FORMAT(Expr, ...)
 
