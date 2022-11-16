@@ -48,9 +48,6 @@ public:
 		, PropertyFlags(InPropertyFlags)
 	{
 	}
-public:
-	//同级属性链
-	CMetaProperty* PropertyLinkNext = nullptr;
 
 public:
 	EPropertyFlags PropertyFlags;
@@ -61,7 +58,11 @@ public:
 	FORCEINLINE bool HasAllPropertyFlags(EPropertyFlags FlagsToCheck) const { return ((PropertyFlags & FlagsToCheck) == FlagsToCheck); }
 
 public:
-	std::string GetScriptDeclaration();
+	//同级属性链
+	CMetaProperty* PropertyLinkNext = nullptr;
+
+public:
+	std::string GetDeclarationForScriptEngine();
 	// FORCEINLINE bool IsPointer() { return GetCastFlags() & MCF_CPtrProperty; }
 	FORCEINLINE auto GetValuePtr(void* InContainerPtr) const -> void* { return static_cast<U8*>(InContainerPtr) + Offset; }
 	FORCEINLINE auto GetValuePtr(const void* InContainerPtr) const -> const void* { return static_cast<const U8*>(InContainerPtr) + Offset; }
@@ -70,18 +71,12 @@ public:
 	template <typename T>
 	FORCEINLINE auto GetValueRefAs(void* InContainerPtr) const -> T& { return *static_cast<T*>(GetValuePtr(InContainerPtr)); }
 
-	virtual std::string GetScriptTypeDecl() { return "void"; }
+	virtual std::string GetTypeDeclaration() { return "void"; }
 	virtual void CopyValue(void* Dest, void const* Src) const { ; }
 	virtual void MoveValue(void* Dest, void const* Src) const { ; }
 
 	// CMetaClass* MetaClass = nullptr;
 	OffsetSizeType Offset = 0;
-
-	bool bIsStatic	  : 1;
-	bool bIsReturn	  : 1;
-	bool bIsPointer	  : 1;
-	bool bIsReference : 1;
-	bool bIsOut		  : 1;
 
 protected:
 	template <typename T>
@@ -93,7 +88,7 @@ class RTCXX_API CBoolProperty : public CMetaProperty
 	DECLARE_METADATA_CLASS(CBoolProperty, CMetaProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CBoolProperty, CMetaProperty)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 
 public:
 	bool GetBoolValue(void* InContainerPtr) { return GetValueRefAs<bool>(InContainerPtr); }
@@ -166,7 +161,7 @@ class RTCXX_API CI8Property : public TNumericProperty<I8>
 	DECLARE_METADATA_CLASS(CI8Property, CNumericProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CI8Property, TNumericProperty<I8>)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 };
 
 class RTCXX_API CI16Property : public TNumericProperty<I16>
@@ -174,7 +169,7 @@ class RTCXX_API CI16Property : public TNumericProperty<I16>
 	DECLARE_METADATA_CLASS(CI16Property, CNumericProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CI16Property, TNumericProperty<I16>)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 };
 
 class RTCXX_API CI32Property : public TNumericProperty<I32>
@@ -182,7 +177,7 @@ class RTCXX_API CI32Property : public TNumericProperty<I32>
 	DECLARE_METADATA_CLASS(CI32Property, CNumericProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CI32Property, TNumericProperty<I32>)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 };
 
 class RTCXX_API CI64Property : public TNumericProperty<I64>
@@ -190,7 +185,7 @@ class RTCXX_API CI64Property : public TNumericProperty<I64>
 	DECLARE_METADATA_CLASS(CI64Property, CNumericProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CI64Property, TNumericProperty<I64>)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 };
 
 class RTCXX_API CU8Property : public TNumericProperty<U8>
@@ -198,7 +193,7 @@ class RTCXX_API CU8Property : public TNumericProperty<U8>
 	DECLARE_METADATA_CLASS(CU8Property, CNumericProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CU8Property, TNumericProperty<U8>)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 };
 
 class RTCXX_API CU16Property : public TNumericProperty<U16>
@@ -206,7 +201,7 @@ class RTCXX_API CU16Property : public TNumericProperty<U16>
 	DECLARE_METADATA_CLASS(CU16Property, CNumericProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CU16Property, TNumericProperty<U16>)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 };
 
 class RTCXX_API CU32Property : public TNumericProperty<U32>
@@ -214,7 +209,7 @@ class RTCXX_API CU32Property : public TNumericProperty<U32>
 	DECLARE_METADATA_CLASS(CU32Property, CNumericProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CU32Property, TNumericProperty<U32>)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 };
 
 class RTCXX_API CU64Property : public TNumericProperty<U64>
@@ -222,7 +217,7 @@ class RTCXX_API CU64Property : public TNumericProperty<U64>
 	DECLARE_METADATA_CLASS(CU64Property, CNumericProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CU64Property, TNumericProperty<U64>)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 };
 
 class RTCXX_API CF32Property : public TNumericProperty<F32>
@@ -230,7 +225,7 @@ class RTCXX_API CF32Property : public TNumericProperty<F32>
 	DECLARE_METADATA_CLASS(CF32Property, CNumericProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CF32Property, TNumericProperty<F32>)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 };
 
 class RTCXX_API CF64Property : public TNumericProperty<F64>
@@ -238,7 +233,7 @@ class RTCXX_API CF64Property : public TNumericProperty<F64>
 	DECLARE_METADATA_CLASS(CF64Property, CNumericProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CF64Property, TNumericProperty<F64>)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 };
 
 class RTCXX_API CStrProperty : public CMetaProperty
@@ -246,7 +241,7 @@ class RTCXX_API CStrProperty : public CMetaProperty
 	DECLARE_METADATA_CLASS(CStrProperty, CMetaProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CStrProperty, CMetaProperty)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 };
 
 class RTCXX_API CClassProperty : public CMetaProperty
@@ -254,7 +249,7 @@ class RTCXX_API CClassProperty : public CMetaProperty
 	DECLARE_METADATA_CLASS(CClassProperty, CMetaProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CClassProperty, CMetaProperty)
 public:
-	std::string GetScriptTypeDecl() override;
+	std::string GetTypeDeclaration() override;
 
 	CMetaClass* MetaClass;
 };
@@ -264,10 +259,7 @@ class RTCXX_API CPtrProperty : public CMetaProperty
 	DECLARE_METADATA_CLASS(CPtrProperty, CMetaProperty)
 	DECLARE_PROPERTY_CONSTRUCTOR(CPtrProperty, CMetaProperty)
 public:
-	std::string GetScriptTypeDecl() override { 
-		std::string PointerToScriptTypeDecl = PointerToProp->GetScriptTypeDecl();
-		return PointerToScriptTypeDecl + "&";
-	}
+	std::string GetTypeDeclaration() override;
 
 	CMetaProperty* PointerToProp;
 };
@@ -286,7 +278,6 @@ class RTCXX_API CArrayProperty : public CMetaProperty
 public:
 	CMetaProperty* ElementProp;
 };
-
 
 RTCXX_API extern CBoolProperty StandardCBoolProperty;
 RTCXX_API extern CNumericProperty StandardCNumericProperty;
@@ -323,107 +314,5 @@ RTCXX_API extern CPtrProperty StandardPtrCStrProperty;
 // RTCXX_API extern CObjectProperty StandardPtrCObjectProperty;
 // RTCXX_API extern CObjectPtrProperty StandardPtrCObjectPtrProperty;
 // RTCXX_API extern CArrayProperty StandardPtrCArrayProperty;
-
-//template <typename T, class Enabled = void>
-//struct TMetaProperty
-//{
-//	using Type = void;
-//};
-//
-//template <>
-//struct TMetaProperty<void>
-//{
-//	using Type = CMetaProperty;
-//};
-//
-//template <>
-//struct TMetaProperty<bool>
-//{
-//	using Type = CBoolProperty;
-//};
-//
-//template <>
-//struct TMetaProperty<I8>
-//{
-//	using Type = CI8Property;
-//};
-//
-//template <>
-//struct TMetaProperty<I16>
-//{
-//	using Type = CI16Property;
-//};
-//
-//template <>
-//struct TMetaProperty<I32>
-//{
-//	using Type = CI32Property;
-//};
-//
-//template <>
-//struct TMetaProperty<I64>
-//{
-//	using Type = CI64Property;
-//};
-//
-//template <>
-//struct TMetaProperty<U8>
-//{
-//	using Type = CU8Property;
-//};
-//
-//template <>
-//struct TMetaProperty<U16>
-//{
-//	using Type = CU16Property;
-//};
-//
-//template <>
-//struct TMetaProperty<U32>
-//{
-//	using Type = CU32Property;
-//};
-//
-//template <>
-//struct TMetaProperty<U64>
-//{
-//	using Type = CU64Property;
-//};
-//
-//template <>
-//struct TMetaProperty<F32>
-//{
-//	using Type = CF32Property;
-//};
-//
-//template <>
-//struct TMetaProperty<F64>
-//{
-//	using Type = CF64Property;
-//};
-//
-//template <>
-//struct TMetaProperty<std::string>
-//{
-//	using Type = CStrProperty;
-//};
-//
-//// template <typename T>
-//// struct TMetaProperty<T, std::enable_if_t<std::is_base_of_v<OObject, T>>>
-////{
-////	using Type = CObjectProperty;
-//// };
-//
-//template <typename T>
-//struct TMetaProperty<T, std::enable_if_t<std::is_pointer_v<T> && std::is_base_of_v<OObject, std::remove_pointer_t<T>>>>
-//{
-//	using Type = CObjectPtrProperty;
-//};
-//
-//template <typename T>
-//struct TMetaProperty<T, std::enable_if_t<std::is_class_v<T>>>
-//{
-//	using Type = CClassProperty;
-//};
 
 RTCXX_NAMESPACE_END

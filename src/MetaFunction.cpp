@@ -5,7 +5,7 @@ RTCXX_NAMESPACE_BEGIN
 
 IMPLEMENT_METADATA_CLASS(CMetaFunction)
 
-std::string CMetaFunction::GetScriptDeclaration()
+std::string CMetaFunction::GetDeclarationForScriptEngine()
 {
 	std::string Declaration;
 	auto PropertyLinkIt = PropertyLink;
@@ -16,11 +16,11 @@ std::string CMetaFunction::GetScriptDeclaration()
 	{
 		if (PropertyLinkIt->HasAnyPropertyFlags(PF_ReturnParam))
 		{
-			DeclarationReturn = PropertyLinkIt->GetScriptTypeDecl();
+			DeclarationReturn = PropertyLinkIt->GetTypeDeclaration();
 		}
 		else
 		{
-			DeclarationArgs.push_back(PropertyLinkIt->GetScriptTypeDecl());
+			DeclarationArgs.push_back(PropertyLinkIt->GetTypeDeclaration());
 			if (DeclarationArgs.back().back() == '&')
 			{
 
@@ -41,7 +41,7 @@ std::string CMetaFunction::GetScriptDeclaration()
 		Declaration += DeclarationArgs[i];
 	}
 	Declaration += ")";
-    return Declaration;
+	return Declaration;
 }
 
 RTCXX_NAMESPACE_END

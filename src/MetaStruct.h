@@ -16,14 +16,19 @@ public:
 		: CMetadata(InOwner, InName, InMetadataClass)
 	{
 	}
+
 public:
 	void InsertProperty(CMetaProperty* InMetaProperty);
 	CMetaProperty* PropertyLink = nullptr;
 
-public:
+	//同级属性链
+	void InsertSubStruct(CMetaStruct* InStruct);
+	CMetaStruct* SubStructLink	   = nullptr;
+	CMetaStruct* SubStructLinkNext = nullptr;
 
+	CMetaStruct* SuperStruct = nullptr;
+
+public:
 };
 
-
 RTCXX_NAMESPACE_END
-

@@ -26,6 +26,9 @@
 #define FORCEINLINE	  __forceinline		   /* Force code to be inline */
 #define FORCENOINLINE __declspec(noinline) /* Force code to NOT be inline */
 
+#define LIKELY	 [[likely]]
+#define UNLIKELY [[unlikely]]
+
 #define DECL_ENUM_FLAGS(Enum)                                                                                                                                                          \
 	inline Enum& operator|=(Enum& LHS, Enum RHS) { return LHS = static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) | static_cast<std::underlying_type_t<Enum>>(RHS)); }  \
 	inline Enum& operator&=(Enum& LHS, Enum RHS) { return LHS = static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(LHS) & static_cast<std::underlying_type_t<Enum>>(RHS)); }  \
@@ -58,17 +61,17 @@
 	#define PRAGMA_GCC_DIAGNOSTIC_POP()
 	#define PRAGMA_MSVC_WARNING_PUSH()
 	#define PRAGMA_MSVC_WARNING_DISABLE(X)
-	#define PRAGMA_MSVC_WARNING_POP() 
+	#define PRAGMA_MSVC_WARNING_POP()
 #endif
- 
-// 
+
+//
 #ifdef ____RTCXX_GENERATOR____
 	//#define RMETADATA(NAME) [[clang::annotate("Metadata" __VA_OPT__(", ") #__VA_ARGS__)]] //__attribute__((annotate("Metadata" __VA_OPT__(",") #__VA_ARGS__)))
-	#define RCLASS(...)	    [[clang::annotate("Class"    __VA_OPT__(", ") #__VA_ARGS__)]]
-	#define RSTRUCT(...)    [[clang::annotate("Struct"   __VA_OPT__(", ") #__VA_ARGS__)]]
-	#define RENUM(...)	    [[clang::annotate("Enum"     __VA_OPT__(", ") #__VA_ARGS__)]]
-	#define RPROPERTY(...)  [[clang::annotate("Property" __VA_OPT__(", ") #__VA_ARGS__)]]
-	#define RFUNCTION(...)  [[clang::annotate("Function" __VA_OPT__(", ") #__VA_ARGS__)]]
+	#define RCLASS(...)	   [[clang::annotate("Class" __VA_OPT__(", ") #__VA_ARGS__)]]
+	#define RSTRUCT(...)   [[clang::annotate("Struct" __VA_OPT__(", ") #__VA_ARGS__)]]
+	#define RENUM(...)	   [[clang::annotate("Enum" __VA_OPT__(", ") #__VA_ARGS__)]]
+	#define RPROPERTY(...) [[clang::annotate("Property" __VA_OPT__(", ") #__VA_ARGS__)]]
+	#define RFUNCTION(...) [[clang::annotate("Function" __VA_OPT__(", ") #__VA_ARGS__)]]
 #else
 	#define RCLASS(...)
 	#define RENUM(...)
@@ -136,9 +139,9 @@ typedef float F32;
 typedef double F64;
 
 template <typename T>
-constexpr bool ConstexprTrue = true;
+constexpr bool StaticTrue = true;
 template <typename T>
-constexpr bool ConstexprFalse = false;
+constexpr bool StaticFalse = false;
 
 RTCXX_NAMESPACE_BEGIN
 

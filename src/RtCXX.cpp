@@ -15,19 +15,6 @@ CController::CController()
 {
 	ScriptEngine = asCreateScriptEngine();
 	RegisterStdString(ScriptEngine);
-	//TClass<void>       ::CreateStatic("void",    this);
-	//TClass<I8>         ::CreateStatic("I8",      this);
-	//TClass<I16>        ::CreateStatic("I16",     this);
-	//TClass<I32>        ::CreateStatic("I32",     this);
-	//TClass<I64>        ::CreateStatic("I64",     this);
-	//TClass<U8>         ::CreateStatic("U8",      this);
-	//TClass<U16>        ::CreateStatic("U16",     this);
-	//TClass<U32>        ::CreateStatic("U32",     this);
-	//TClass<U64>        ::CreateStatic("U64",     this);
-	//TClass<F32>        ::CreateStatic("F32",     this);
-	//TClass<F64>        ::CreateStatic("F64",     this);
-	//TClass<std::string>::CreateStatic("String",  this);
-	//TClass<Boolean>    ::CreateStatic("Boolean", this);
 	int r;
 	// https://www.angelcode.com/angelscript/sdk/docs/manual/doc_global_typedef.html
 	// r = ScriptEngine->RegisterTypedef("Void"   , "void"); assert(r >= 0);
@@ -140,11 +127,11 @@ void CController::BuildInheritedData()
 		void operator()(CMetaClass* CurrentClass)
 		{
 			CurrentClass->CastRanges.first = CastIndexCounter++;
-			auto DerivedClassLinkNext = CurrentClass->DerivedClassLink;
+			auto DerivedClassLinkNext = CurrentClass->GetSubClassLink();
 			while (DerivedClassLinkNext)
 			{
 				(*this)(DerivedClassLinkNext);
-				DerivedClassLinkNext = DerivedClassLinkNext->DerivedClassLinkNext;
+				DerivedClassLinkNext = DerivedClassLinkNext->GetSubClassLinkNext();
 			}
 			CurrentClass->CastRanges.second = CastIndexCounter;
 		}
@@ -153,7 +140,7 @@ void CController::BuildInheritedData()
 	for (size_t i = 0; i < ClassIndices.size(); i++)
 	{
 		auto MetaClass = static_cast<CMetaClass*>(Metadatas[ClassIndices[i]]);
-		if (!MetaClass->BaseClass)
+		if (!MetaClass->GetSuperClass())
 		{
 			Loopper(MetaClass);
 		}
@@ -187,9 +174,9 @@ void SetInheritanceRelationship(CMetaClass* InMetaClass, const char* InBaseClass
 	assert(InController);
 	InController->GetClassByAfterRegisterClassCallback(
 		InBaseClassName,
-		[InMetaClass](CMetaClass* BaseClass) {
-			InMetaClass->BaseClass = BaseClass;
-			BaseClass->InsertDerivedClass(InMetaClass);
+		[InMetaClass](CMetaClass* SuperClass) {
+			InMetaClass->SuperStruct = SuperClass;
+			SuperClass->InsertSubStruct(InMetaClass);
 		});
 }
 

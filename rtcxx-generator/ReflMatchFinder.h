@@ -281,40 +281,39 @@ public:
                     WriteCodeLine(std::format("        CMetaProperty* CurrentProperty = nullptr;"                 , CXXRecordDecl->getQualifiedNameAsString(), CXXRecordDeclMetaTag));
                     WriteCodeLine(std::format("        CMetaFunction* CurrentFunction = nullptr;"                 , CXXRecordDecl->getQualifiedNameAsString(), CXXRecordDeclMetaTag));
                     PushIndent(8);
+                    std::string BaseClassName;
+                    std::vector<std::string> InterfacesName;
+                    auto BaseIterator = CXXRecordDecl->bases_begin();
+                    if (BaseIterator != CXXRecordDecl->bases_end())
+                    {
+                        auto BaseCXXRecordDecl = (*BaseIterator).getType()->getAsCXXRecordDecl();
+                        std::string BaseCXXRecordDeclMetaTag;
+                        std::vector<std::pair<std::string, std::string>> BaseCXXRecordDeclAttrs;
+                        if (ParseReflectAnnotation(BaseCXXRecordDecl, BaseCXXRecordDeclMetaTag, BaseCXXRecordDeclAttrs, 0)) {
+                            if (CXXRecordDeclMetaTag == "Class")
+                            {
+                                BaseClassName = BaseCXXRecordDecl->getQualifiedNameAsString();
+                            }
+                        }
+                        for (; BaseIterator != CXXRecordDecl->bases_end(); BaseIterator++) {
+                        }
+                    }
+                    std::string InterfacesNameStr = "{ ";
+                    for (size_t i = 0; i < InterfacesName.size(); i++)
+                    {
+                        InterfacesNameStr += "\"" + InterfacesName[i] + "\"";
+                        InterfacesNameStr += ", ";
+                    }
+                    InterfacesNameStr += "nullptr }";
+                    std::string UnqiueStructName = InsertUnqiueStruct(CXXRecordDecl, CXXRecordDeclAttrs);
+                    WriteCodeLine(std::format("CurrentClass = StaticCreateUniqueClass<{:s}, {:s}>(nullptr, \"{:s}\", CF_None, {:s}, {:s}, Controller);",
+                        UnqiueStructName,
+                        CXXRecordDecl->getQualifiedNameAsString(),
+                        CXXRecordDecl->getQualifiedNameAsString(),
+                        BaseClassName.empty() ? "nullptr" : "\"" + BaseClassName + "\"",
+                        InterfacesNameStr));
                     if (bIsClass)
                     {
-                        std::string BaseClassName;
-                        std::vector<std::string> InterfacesName;
-                        auto BaseIterator = CXXRecordDecl->bases_begin();
-                        if (BaseIterator != CXXRecordDecl->bases_end())
-                        {
-                            auto BaseCXXRecordDecl = (*BaseIterator).getType()->getAsCXXRecordDecl();
-                            std::string BaseCXXRecordDeclMetaTag;
-                            std::vector<std::pair<std::string, std::string>> BaseCXXRecordDeclAttrs;
-                            if (ParseReflectAnnotation(BaseCXXRecordDecl, BaseCXXRecordDeclMetaTag, BaseCXXRecordDeclAttrs, 0)) {
-                                if (CXXRecordDeclMetaTag == "Class")
-                                {
-                                    BaseClassName = BaseCXXRecordDecl->getQualifiedNameAsString();
-                                }
-                            }
-                            for (; BaseIterator != CXXRecordDecl->bases_end(); BaseIterator++) {
-
-                            }
-                        }
-                        std::string InterfacesNameStr = "{ ";
-                        for (size_t i = 0; i < InterfacesName.size(); i++)
-                        {
-                            InterfacesNameStr += "\"" + InterfacesName[i] + "\"";
-                            InterfacesNameStr += ", ";
-                        }
-                        InterfacesNameStr += "nullptr }";
-                        std::string UnqiueStructName = InsertUnqiueStruct(CXXRecordDecl, CXXRecordDeclAttrs);
-                        WriteCodeLine(std::format("CurrentClass = StaticCreateUniqueClass<{:s}, {:s}>(nullptr, \"{:s}\", CF_None, {:s}, {:s}, Controller);",
-                            UnqiueStructName,
-                            CXXRecordDecl->getQualifiedNameAsString(),
-                            CXXRecordDecl->getQualifiedNameAsString(),
-                            BaseClassName.empty() ? "nullptr" : "\"" + BaseClassName + "\"",
-                            InterfacesNameStr));
                         for (auto MethodIterator = CXXRecordDecl->method_begin();
                             MethodIterator != CXXRecordDecl->method_end(); MethodIterator++)
                         {
@@ -462,14 +461,17 @@ public:
         std::vector<std::string> UnqiueStructCode;
         UnqiueStructCode.push_back(std::format("struct {0:s}\n", UnqiueAnonymousStructName));
         UnqiueStructCode.push_back(std::format("{{\n"));
-        if (!CastParmVarDecl)
+        if (!Attrs.empty())
         {
-            UnqiueStructCode.push_back(std::format("    constexpr static std::array<RtCXX::CMetadata::ConstAttrType, {:d}> ConstAttrs = {{\n", Attrs.size()));
-            for (size_t i = 0; i < Attrs.size(); i++)
+            if (!CastParmVarDecl)
             {
-                UnqiueStructCode.push_back(std::format("        std::pair(\"{0:s}\", {1:s}),\n", Attrs[i].first, Attrs[i].second));
+                UnqiueStructCode.push_back(std::format("    constexpr static std::array<RtCXX::CMetadata::ConstAttrType, {:d}> ConstAttrs = {{\n", Attrs.size()));
+                for (size_t i = 0; i < Attrs.size(); i++)
+                {
+                    UnqiueStructCode.push_back(std::format("        std::pair(\"{0:s}\", {1:s}),\n", Attrs[i].first, Attrs[i].second));
+                }
+                UnqiueStructCode.push_back(std::format("    }};\n"));
             }
-            UnqiueStructCode.push_back(std::format("    }};\n"));
         }
         UnqiueStructCode.push_back(std::format("}};\n"));
         CodeLines.insert(CodeLines.begin(), UnqiueStructCode.begin(), UnqiueStructCode.end());

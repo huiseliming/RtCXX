@@ -16,7 +16,7 @@ TEST_CASE("TestScriptEngine", "[Class]")
 	OApplication app2;
 	app2.ApplicationName = "asd";
 	auto ti = GetControllerPtr()->ScriptEngine->GetTypeInfoByDecl("OApplication");
-	auto Method = ti->GetMethodByDecl(Func->GetScriptDeclaration().c_str());
+	auto Method = ti->GetMethodByDecl(Func->GetDeclarationForScriptEngine().c_str());
 	auto Context = GController->ScriptEngine->CreateContext();
 	for (size_t i = 0; i < 10; i++)
 	{

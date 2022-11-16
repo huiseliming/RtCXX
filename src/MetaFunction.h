@@ -28,9 +28,6 @@ public:
 	{
 	}
 
-	//同级属性链
-	CMetaFunction* FunctionLinkNext = nullptr;
-
 public:
 	EFunctionFlags FunctionFlags;
 	FORCEINLINE EFunctionFlags GetFunctionFlags() { return FunctionFlags; }
@@ -39,12 +36,14 @@ public:
 	FORCEINLINE bool HasAnyFunctionFlags(EFunctionFlags FlagsToCheck) const { return (FunctionFlags & FlagsToCheck) != 0; }
 	FORCEINLINE bool HasAllFunctionFlags(EFunctionFlags FlagsToCheck) const { return ((FunctionFlags & FlagsToCheck) == FlagsToCheck); }
 
+	//同级属性链
+	CMetaFunction* FunctionLinkNext = nullptr;
+
 public:
-	std::string GetScriptDeclaration();
+	std::string GetDeclarationForScriptEngine();
 
 public:
 	asSFuncPtr FuncPtr;
-	bool bIsStatic : 1;
 
 protected:
 };

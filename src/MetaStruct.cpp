@@ -7,13 +7,14 @@ IMPLEMENT_METADATA_CLASS(CMetaStruct)
 
 void CMetaStruct::InsertProperty(CMetaProperty* InMetaProperty)
 {
-	if (!PropertyLink)
-	{
-		PropertyLink = InMetaProperty;
-		return;
-	}
 	InMetaProperty->PropertyLinkNext = PropertyLink;
 	PropertyLink = InMetaProperty;
+}
+
+void CMetaStruct::InsertSubStruct(CMetaStruct* InStruct)
+{
+	InStruct->SubStructLinkNext = SubStructLink;
+	SubStructLink = InStruct;
 }
 
 RTCXX_NAMESPACE_END

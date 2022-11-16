@@ -62,23 +62,6 @@ static struct CStandardPropertyIniter
 {
 	CStandardPropertyIniter()
 	{
-		StandardCBoolProperty.bIsPointer = false;
-		StandardCNumericProperty.bIsPointer = false;
-		StandardCI8Property.bIsPointer = false;
-		StandardCI16Property.bIsPointer = false;
-		StandardCI32Property.bIsPointer = false;
-		StandardCI64Property.bIsPointer = false;
-		StandardCU8Property.bIsPointer = false;
-		StandardCU16Property.bIsPointer = false;
-		StandardCU32Property.bIsPointer = false;
-		StandardCU64Property.bIsPointer = false;
-		StandardCF32Property.bIsPointer = false;
-		StandardCF64Property.bIsPointer = false;
-		StandardCStrProperty.bIsPointer = false;
-		// StandardCClassProperty.bIsPointer = false;
-		// StandardCObjectProperty.bIsPointer = false;
-		// StandardCObjectPtrProperty.bIsPointer = false;
-		// StandardCArrayProperty.bIsPointer = false;
 
 		StandardPtrCBoolProperty.PointerToProp = &StandardCBoolProperty;
 		StandardPtrCNumericProperty.PointerToProp = &StandardCNumericProperty;
@@ -93,97 +76,82 @@ static struct CStandardPropertyIniter
 		StandardPtrCF32Property.PointerToProp = &StandardCF32Property;
 		StandardPtrCF64Property.PointerToProp = &StandardCF64Property;
 		StandardPtrCStrProperty.PointerToProp = &StandardCStrProperty;
-
-		StandardPtrCBoolProperty.bIsPointer = true;
-		StandardPtrCNumericProperty.bIsPointer = true;
-		StandardPtrCI8Property.bIsPointer = true;
-		StandardPtrCI16Property.bIsPointer = true;
-		StandardPtrCI32Property.bIsPointer = true;
-		StandardPtrCI64Property.bIsPointer = true;
-		StandardPtrCU8Property.bIsPointer = true;
-		StandardPtrCU16Property.bIsPointer = true;
-		StandardPtrCU32Property.bIsPointer = true;
-		StandardPtrCU64Property.bIsPointer = true;
-		StandardPtrCF32Property.bIsPointer = true;
-		StandardPtrCF64Property.bIsPointer = true;
-		StandardPtrCStrProperty.bIsPointer = true;
-
-		// StandardPtrCClassProperty.bIsPointer = true;
-		// StandardPtrCObjectProperty.bIsPointer = true;
-		// StandardPtrCObjectPtrProperty.bIsPointer = true;
-		// StandardPtrCArrayProperty.bIsPointer = true;
 	}
 } StandardPropertyIniter;
 
-std::string CMetaProperty::GetScriptDeclaration()
+std::string CMetaProperty::GetDeclarationForScriptEngine()
 {
-	std::string ScriptTypeDecl = GetScriptTypeDecl();
-	return fmt::format("{:s} {:s}", ScriptTypeDecl, Name);
+	return fmt::format("{:s} {:s}", GetTypeDeclaration(), Name);
 }
 
-std::string CBoolProperty::GetScriptTypeDecl()
+std::string CBoolProperty::GetTypeDeclaration()
 {
 	return "bool";
 }
 
-std::string CI8Property::GetScriptTypeDecl()
+std::string CI8Property::GetTypeDeclaration()
 {
 	return "int8";
 }
 
-std::string CI16Property::GetScriptTypeDecl()
+std::string CI16Property::GetTypeDeclaration()
 {
 	return "int16";
 }
 
-std::string CI32Property::GetScriptTypeDecl()
+std::string CI32Property::GetTypeDeclaration()
 {
 	return "int";
 }
 
-std::string CI64Property::GetScriptTypeDecl()
+std::string CI64Property::GetTypeDeclaration()
 {
 	return "int64";
 }
 
-std::string CU8Property::GetScriptTypeDecl()
+std::string CU8Property::GetTypeDeclaration()
 {
 	return "uint8";
 }
 
-std::string CU16Property::GetScriptTypeDecl()
+std::string CU16Property::GetTypeDeclaration()
 {
 	return "uint16";
 }
 
-std::string CU32Property::GetScriptTypeDecl()
+std::string CU32Property::GetTypeDeclaration()
 {
 	return "uint";
 }
 
-std::string CU64Property::GetScriptTypeDecl()
+std::string CU64Property::GetTypeDeclaration()
 {
 	return "uint64";
 }
 
-std::string CF32Property::GetScriptTypeDecl()
+std::string CF32Property::GetTypeDeclaration()
 {
 	return "float";
 }
 
-std::string CF64Property::GetScriptTypeDecl()
+std::string CF64Property::GetTypeDeclaration()
 {
 	return "double";
 }
 
-std::string CClassProperty::GetScriptTypeDecl()
-{
-	return MetaClass->GetName();
-}
-
-std::string CStrProperty::GetScriptTypeDecl()
+std::string CStrProperty::GetTypeDeclaration()
 {
 	return "string";
 }
 
+std::string CClassProperty::GetTypeDeclaration()
+{
+	return MetaClass->GetName();
+}
+
+std::string CPtrProperty::GetTypeDeclaration() {
+	return PointerToProp->GetTypeDeclaration() + "&";
+}
+
 RTCXX_NAMESPACE_END
+

@@ -7,6 +7,7 @@
 #include "Templates/Null.h"
 #include "Cast.h"
 #include "Templates/IsArray.h"
+#include "Templates/Traits.h"
 
 RTCXX_NAMESPACE_BEGIN
 
@@ -71,180 +72,35 @@ private:
 	friend RTCXX_API CController* GetControllerPtr();
 };
 
+RTCXX_API void SetInheritanceRelationship(CMetaClass* InMetaClass, const char* InBaseClassName, CController* InController);
+RTCXX_API void SetStandardClassPtrProperty(CMetaProperty** OutProperty, const char* InClassName, CController* InController = nullptr);
+RTCXX_API void SetStandardClassProperty(CMetaProperty** OutProperty, const char* InClassName, CController* InController = nullptr);
+
 template <typename T>
-class TClass : public CMetaClass
-{
-public:
-	TClass(CMetadata* InOwner, const std::string& InName, EClassFlags InClassFlags)
-		: CMetaClass(InOwner, InName, InClassFlags)
-	{
-		TypeIndex = typeid(T);
-		bHasConstructor = std::is_default_constructible<T>::value && !std::is_trivially_default_constructible<T>::value;
-		bHasDestructor = std::is_destructible<T>::value && !std::is_trivially_destructible<T>::value;
-		bHasAssignmentOperator = std::is_copy_assignable<T>::value && !std::is_trivially_copy_assignable<T>::value;
-		bHasCopyConstructor = std::is_copy_constructible<T>::value && !std::is_trivially_copy_constructible<T>::value;
-		
-		SizeOf = sizeof(T);
-
-		CopyAssign      = &CopyAssignImpl;
-		MoveAssign      = &MoveAssignImpl;
-		Constructor     = &ConstructorImpl;
-		CopyConstructor = &CopyConstructorImpl;
-		MoveConstructor = &MoveConstructorImpl;
-		Destructor      = &DestructorImpl;
-
-		static CClassProperty ClassProp(nullptr, "Standard" + Name, 0, PF_None);
-		ClassProp.bIsPointer = false;
-		ClassProp.MetaClass = this;
-		StandardProperty = &ClassProp;
-		if constexpr (std::is_base_of_v<OObject, T>)
-		{
-			static CObjectPtrProperty ObjPtrProp(nullptr, "StandardPtr" + Name, 0, PF_None);
-			ObjPtrProp.bIsPointer = true;
-			ObjPtrProp.PointerToProp = &ClassProp;
-			StandardPtrProperty = &ObjPtrProp;
-		}
-		else
-		{
-			static CPtrProperty ClassPtrProp(nullptr, "StandardPtr" + Name, 0, PF_None);
-			ClassPtrProp.bIsPointer = true;
-			ClassPtrProp.PointerToProp = &ClassProp;
-			StandardPtrProperty = &ClassPtrProp;
-		}
-	}
-
-public:
-	static CMetaClass* CreateStatic(const std::string& InName, CController* InController = nullptr)
-	{
-		if (!InController)
-			InController = GetControllerPtr();
-		static CMetaClass* MetaClassPtr = [&]() -> CMetaClass* {
-			static TClass StaticClass(InName, InController);
-			return &StaticClass;
-		}();
-		return MetaClassPtr;
-	}
-
-	static void CopyAssignImpl(void* instance_ptr, const void* other_ptr)
-	{
-		if constexpr (std::is_copy_assignable_v<T>)
-			*static_cast<T*>(instance_ptr) = *static_cast<const T*>(other_ptr);
-		else
-			THROW_STD_EXCEPTION();
-	}
-
-	static void MoveAssignImpl(void* instance_ptr, void* other_ptr)
-	{
-		if constexpr (std::is_move_assignable_v<T>)
-			*static_cast<T*>(instance_ptr) = std::move(*static_cast<T*>(other_ptr));
-		else
-			THROW_STD_EXCEPTION();
-	}
-
-	static void ConstructorImpl(void* instance_ptr)
-	{
-		if constexpr (std::is_constructible_v<T>)
-		{
-			if constexpr (!std::is_trivially_constructible_v<T>)
-			{
-				new (instance_ptr) T();
-			}
-		}
-	}
-
-	static void CopyConstructorImpl(void* instance_ptr, const void* other_ptr)
-	{
-		if constexpr (std::is_copy_constructible_v<T>)
-			new (instance_ptr) T(*static_cast<const T*>(other_ptr));
-		else
-			THROW_STD_EXCEPTION();
-	}
-
-	static void MoveConstructorImpl(void* instance_ptr, void* other_ptr)
-	{
-		if constexpr (std::is_move_constructible_v<T>)
-			new (instance_ptr) T(std::move(*static_cast<T*>(other_ptr)));
-		else
-			THROW_STD_EXCEPTION();
-	}
-
-	static void DestructorImpl(void* instance_ptr)
-	{
-		if constexpr (!std::is_trivially_destructible_v<T>)
-		{
-			static_cast<T*>(instance_ptr)->~T();
-		}
-	}
-
-	virtual void RegisterToScriptEngine(asIScriptEngine* ScriptEngine) 
-	{
-		if constexpr (!std::is_arithmetic_v<T> && !std::is_void_v<T> && !std::is_same_v<T, std::string>)
-		{
-			bool IsObject = CastCheckCastRanges(this, OObject::GVar_StaticClass);
-			asDWORD ObjectTypeFlag = 0;
-			if (IsObject)
-			{
-				int r = ScriptEngine->RegisterObjectType(Name.c_str(), SizeOf, asOBJ_REF); assert(r >= 0);
-				//r = ScriptEngine->RegisterObjectBehaviour("ref", asBEHAVE_ADDREF, "void f()", asMETHOD(CRef, AddRef), asCALL_THISCALL); assert(r >= 0);
-				//r = ScriptEngine->RegisterObjectBehaviour("ref", asBEHAVE_RELEASE, "void f()", asMETHOD(CRef, Release), asCALL_THISCALL); assert(r >= 0);
-			}
-			else
-			{
-				int r = ScriptEngine->RegisterObjectType(Name.c_str(), SizeOf, asOBJ_VALUE | ConvertToScriptEngineTypeTraits()); assert(r >= 0);
-				r = ScriptEngine->RegisterObjectBehaviour(
-					Name.c_str(),
-					asBEHAVE_CONSTRUCT,
-					"void f()",
-					asFUNCTION(Constructor),
-					asCALL_CDECL_OBJLAST); assert(r >= 0);
-				r = ScriptEngine->RegisterObjectBehaviour(
-					Name.c_str(),
-					asBEHAVE_CONSTRUCT,
-					fmt::format("void f(const {:s} &in)", Name).c_str(),
-					asFUNCTION(CopyConstructor),
-					asCALL_CDECL_OBJFIRST); assert(r >= 0);
-				r = ScriptEngine->RegisterObjectBehaviour(
-					Name.c_str(),
-					asBEHAVE_DESTRUCT,
-					"void f()",
-					asFUNCTION(Destructor),
-					asCALL_CDECL_OBJLAST); assert(r >= 0);
-				r = ScriptEngine->RegisterObjectMethod(
-					Name.c_str(),
-					fmt::format("{0:s} &opAssign(const {0:s} &in)", Name).c_str(),
-					asMETHODPR(T, operator =, (const T&), T&),
-					asCALL_THISCALL); assert(r >= 0);
-			}
-			auto PropLink = PropertyLink;
-			while (PropLink)
-			{
-				int r = ScriptEngine->RegisterObjectProperty(Name.c_str(), PropLink->GetScriptDeclaration().c_str(), PropLink->Offset); assert(r >= 0);
-				PropLink = PropLink->PropertyLinkNext;
-			}
-			auto FuncLink = FunctionLink;
-			while (FuncLink)
-			{
-				int r = ScriptEngine->RegisterObjectMethod(
-					Name.c_str(),
-					FuncLink->GetScriptDeclaration().c_str(),
-					FuncLink->FuncPtr,
-					asCALL_THISCALL); assert(r >= 0);
-				FuncLink = FuncLink->FunctionLinkNext;
-			}
-		}
-	}
+concept CRHasConstAttrs = requires(T * Class) {
+	Class->ConstAttrs;
 };
+
+template<typename UnqiueAnonymousType, size_t Index, size_t Size>
+FORCEINLINE void ForEachSetConstAttr(CMetadata* InMetadata)
+{
+	if constexpr (Size > Index)
+	{
+		constexpr auto Attr = UnqiueAnonymousType::ConstAttrs[Index];
+		InMetadata->SetAttr(Attr.first, std::get<Attr.second.index()>(Attr.second));
+		ForEachSetConstAttr<UnqiueAnonymousType, Index + 1, Size>(InMetadata);
+	}
+}
 
 template<typename UnqiueAnonymousType>
 FORCEINLINE void StaticSetConstAttrs(CMetadata* InMetadata)
 { 
-	for (size_t i = 0; i < UnqiueAnonymousType::ConstAttrs.size(); i++)
+	if constexpr (CRHasConstAttrs<UnqiueAnonymousType>)
 	{
-		InMetadata->SetAttr(UnqiueAnonymousType::ConstAttrs[i].first, std::get<UnqiueAnonymousType::ConstAttrs[i].second.index()>(UnqiueAnonymousType::ConstAttrs[i].second));
+		constexpr auto ConstAttrsSize = UnqiueAnonymousType::ConstAttrs.size();
+		ForEachSetConstAttr<UnqiueAnonymousType, 0, ConstAttrsSize>(InMetadata);
 	}
 }
-
-RTCXX_API void SetInheritanceRelationship(CMetaClass* InMetaClass, const char* InBaseClassName, CController* InController);
 
 template<typename UnqiueAnonymousType, typename T>
 FORCEINLINE auto StaticCreateUniqueClass(CMetadata* InOwner, const std::string& InName, EClassFlags InClassFlags, const char* InBaseClassName, const char* InInterfaceNames[], CController* InController)
@@ -266,45 +122,39 @@ FORCEINLINE auto StaticCreateUniqueClass(CMetadata* InOwner, const std::string& 
 	return &LClass;
 }
 
+
 template <typename T, class Enabled = void>
-struct TMetaProperty{ using Type = void;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<void       , T>>>{ using Type = CMetaProperty;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<bool       , T>>>{ using Type = CBoolProperty;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<I8         , T>>>{ using Type = CI8Property  ;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<I16        , T>>>{ using Type = CI16Property ;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<I32        , T>>>{ using Type = CI32Property ;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<I64        , T>>>{ using Type = CI64Property ;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<U8         , T>>>{ using Type = CU8Property  ;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<U16        , T>>>{ using Type = CU16Property ;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<U32        , T>>>{ using Type = CU32Property ;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<U64        , T>>>{ using Type = CU64Property ;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<F32        , T>>>{ using Type = CF32Property ;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<F64        , T>>>{ using Type = CF64Property ;};
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_same_v<std::string, T>>>{ using Type = CStrProperty ;};
-
-template <typename T>struct TMetaProperty<T, std::enable_if_t<!std::is_same_v<std::string, T> && std::is_class_v<T>>> { using Type = CClassProperty; };
-
-template <typename T>struct TMetaProperty<T, std::enable_if_t<std::is_reference_v<T>>> {
+struct TChooseProperty{ using Type = void;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<void       , T>>>{ using Type = CMetaProperty;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<bool       , T>>>{ using Type = CBoolProperty;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<I8         , T>>>{ using Type = CI8Property  ;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<I16        , T>>>{ using Type = CI16Property ;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<I32        , T>>>{ using Type = CI32Property ;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<I64        , T>>>{ using Type = CI64Property ;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<U8         , T>>>{ using Type = CU8Property  ;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<U16        , T>>>{ using Type = CU16Property ;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<U32        , T>>>{ using Type = CU32Property ;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<U64        , T>>>{ using Type = CU64Property ;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<F32        , T>>>{ using Type = CF32Property ;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<F64        , T>>>{ using Type = CF64Property ;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_same_v<std::string, T>>>{ using Type = CStrProperty ;};
+template <typename T>struct TChooseProperty<T, std::enable_if_t<!std::is_same_v<std::string, T> && std::is_class_v<T>>> { using Type = CClassProperty; };
+template <typename T>struct TChooseProperty<T, std::enable_if_t<std::is_reference_v<T>>> {
 	using PointerToType = std::remove_reference_t<T>;
-	using PointerToPropType = typename TMetaProperty<PointerToType>::Type;
+	using PointerToPropType = typename TChooseProperty<PointerToType>::Type;
 	using Type = std::conditional_t<std::is_base_of_v<OObject, PointerToType>, CObjectPtrProperty, CPtrProperty>;
 };
-
-template <typename T> struct TMetaProperty<T, std::enable_if_t<std::is_pointer_v<T>>>  {
+template <typename T> struct TChooseProperty<T, std::enable_if_t<std::is_pointer_v<T>>>  {
 	using PointerToType = std::remove_pointer_t<T>;
-	using PointerToPropType = typename TMetaProperty<PointerToType>::Type;
+	using PointerToPropType = typename TChooseProperty<PointerToType>::Type;
 	using Type = std::conditional_t<std::is_base_of_v<OObject, PointerToType>, CObjectPtrProperty, CPtrProperty>;
 };
-
-template <typename T>struct TMetaProperty<T, std::enable_if_t<TIsTArray<T>::Value>>
+template <typename T>struct TChooseProperty<T, std::enable_if_t<TIsTArray<T>::Value>>
 {
 	using ElementType = typename TArrayTraits<T>::ElementType;
-	using ElementPropType = typename TMetaProperty<ElementType>::Type;
+	using ElementPropType = typename TChooseProperty<ElementType>::Type;
 	using Type = CArrayProperty; 
 };
-
-RTCXX_API void SetStandardClassPtrProperty(CMetaProperty** OutProperty, const char* InClassName, CController* InController = nullptr);
-RTCXX_API void SetStandardClassProperty(CMetaProperty** OutProperty, const char* InClassName, CController* InController = nullptr);
 
 template<typename PropertyType>
 void SetStandardProperty(CMetaProperty** OutProperty, const char* InClassName, CController* InController)
@@ -332,9 +182,6 @@ template<> FORCEINLINE void SetStandardProperty<U64         >(CMetaProperty** Ou
 template<> FORCEINLINE void SetStandardProperty<F32         >(CMetaProperty** OutProperty, const char* InClassName, CController* InController) { *OutProperty = &StandardCF32Property ;}
 template<> FORCEINLINE void SetStandardProperty<F64         >(CMetaProperty** OutProperty, const char* InClassName, CController* InController) { *OutProperty = &StandardCF64Property ;}
 template<> FORCEINLINE void SetStandardProperty<std::string >(CMetaProperty** OutProperty, const char* InClassName, CController* InController) { *OutProperty = &StandardCStrProperty ;}
-
-template<I32 Index>
-struct TParameterIndex {};
 
 template <typename T>
 struct TPropertyGetterTraitsBase
@@ -374,19 +221,42 @@ FORCEINLINE auto StaticCreateUniqueProperty(CMetadata* InOwner, const std::strin
 {
 	assert(InController);
 	using PropertyType = TPropertyGetterTraits<PropertyGetterType>::PropertyType;
-	using MetaPropertyType = typename TMetaProperty<PropertyType>::Type;
+	using MetaPropertyType = typename TChooseProperty<PropertyType>::Type;
 	static MetaPropertyType LProperty(InOwner, InName, InOffset, InPropertyFlags);
 	if constexpr (TIsTArray<PropertyType>::Value)
 	{
-		using ElementType = typename TMetaProperty<PropertyType>::ElementType;
-		using ElementPropType = typename TMetaProperty<PropertyType>::ElementPropType;
+		using ElementType = typename TChooseProperty<PropertyType>::ElementType;
+		using ElementPropType = typename TChooseProperty<PropertyType>::ElementPropType;
 		SetStandardProperty<ElementType>(&(LProperty.ElementProp), InStandardProperty, InController);
 	}
-	if constexpr (std::is_pointer_v<PropertyType> || std::is_reference_v<PropertyType>)
+	else if constexpr (std::is_pointer_v<PropertyType> || std::is_reference_v<PropertyType>)
 	{
-		using PointerToType = typename TMetaProperty<PropertyType>::PointerToType;
-		using PointerToPropType = typename TMetaProperty<PropertyType>::PointerToPropType;
+		using PointerToType = typename TChooseProperty<PropertyType>::PointerToType;
+		using PointerToPropType = typename TChooseProperty<PropertyType>::PointerToPropType;
 		SetStandardProperty<PointerToType>(&(LProperty.PointerToProp), InStandardProperty, InController);
+		LProperty.SetPropertyFlags(PF_ZeroConstructor | PF_NoDestructor);
+	}
+	else if constexpr (std::is_class_v<PropertyType>)
+	{
+		static_assert(std::is_default_constructible_v<PropertyType>);
+		static_assert(std::is_copy_assignable_v<PropertyType>);
+		static_assert(std::is_destructible_v<PropertyType>);
+		if constexpr (std::is_trivially_default_constructible_v<PropertyType>)
+		{
+			LProperty.SetPropertyFlags(PF_ZeroConstructor);
+		}
+		if constexpr (std::is_trivially_destructible_v<PropertyType>)
+		{
+			LProperty.SetPropertyFlags(PF_ZeroConstructor);
+		}
+	}
+	else if constexpr (std::is_arithmetic_v<PropertyType> || std::is_enum_v<PropertyType>)
+	{
+		LProperty.SetPropertyFlags(PF_ZeroConstructor | PF_NoDestructor);
+	}
+	else
+	{
+		static_assert(std::is_void_v<PropertyType>);
 	}
 	if (auto OwnerClass = InOwner->CastTo<CMetaClass>())
 	{

@@ -2,6 +2,7 @@
 #include "Fwd.h"
 #include <any>
 #include <string>
+#include <array>
 #include <variant>
 #include <unordered_map>
 
@@ -11,7 +12,7 @@ enum EMetadataCastFlags : U32
 {
 	MCF_None			   = 0x00000000,
 	MCF_CMetadata		   = 0x00000001,
-	MCF_CMetaStruct        = 0x00000002,
+	MCF_CMetaStruct		   = 0x00000002,
 	MCF_CMetaClass		   = 0x00000004,
 	MCF_CMetaFunction	   = 0x00000008,
 	MCF_CMetaProperty	   = 0x00000010,
@@ -134,8 +135,10 @@ public:
 	FORCEINLINE I32 GetId() const { return Id; }
 	FORCEINLINE const std::string& GetName() const { return Name; }
 	FORCEINLINE CMetadata* GetOwner() const { return Owner; }
-	//U64 GetCastFlags() { return CastFlags; }
+	// U64 GetCastFlags() { return CastFlags; }
 
+	// Attr
+	using ConstAttrType = std::pair<const char*, std::variant<Boolean, I64, U64, F64, const char*>>;
 	FORCEINLINE bool HasAttr(const std::string& InName, const std::any** OutAttrAny = nullptr) const
 	{
 		for (auto& Attribute : Attributes)
@@ -146,8 +149,8 @@ public:
 				{
 					*OutAttrAny = &Attribute.second;
 				}
+				return true;
 			}
-			return true;
 		}
 		return false;
 	}
@@ -162,7 +165,7 @@ public:
 		return std::any();
 	}
 
-	template<typename T>
+	template <typename T>
 	FORCEINLINE T GetAttrAs(const std::string& InName) const
 	{
 		const std::any* AttrAnyPtr = nullptr;
@@ -171,12 +174,15 @@ public:
 			static_assert(std::is_arithmetic_v<T> || std::is_same_v<T, const char*> || std::is_same_v<T, std::string>);
 			if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, const char*>)
 			{
-				if (AttrAnyPtr->type() == typeid(T)) return std::any_cast<T>(*AttrAnyPtr);
+				if (AttrAnyPtr->type() == typeid(T))
+					return std::any_cast<T>(*AttrAnyPtr);
 			}
 			else
 			{
-				if (AttrAnyPtr->type() == typeid(const char*)) return std::any_cast<const char*>(*AttrAnyPtr);
-				if (AttrAnyPtr->type() == typeid(std::string)) return std::any_cast<std::string>(*AttrAnyPtr);
+				if (AttrAnyPtr->type() == typeid(const char*))
+					return std::any_cast<const char*>(*AttrAnyPtr);
+				if (AttrAnyPtr->type() == typeid(std::string))
+					return std::any_cast<std::string>(*AttrAnyPtr);
 			}
 		}
 		return T();
@@ -200,7 +206,7 @@ public:
 			Attributes.push_back(std::pair(InName, std::move(InValue)));
 	}
 
-	template<typename T>
+	template <typename T>
 	FORCEINLINE void SetAttrValue(const std::string& InName, const T& InValue)
 	{
 		static_assert(std::is_arithmetic_v<T> || std::is_same_v<T, const char*> || std::is_same_v<T, std::string>);
@@ -218,7 +224,7 @@ protected:
 	CMetadata* Owner;
 	std::string Name;
 	CMetadataClass* MetadataClass;
-	//EMetadataCastFlags CastFlags;
+	// EMetadataCastFlags CastFlags;
 
 	std::vector<std::pair<std::string, std::any>> Attributes;
 
@@ -226,8 +232,6 @@ private:
 	friend class CController;
 
 public:
-	using ConstAttrValueType = std::variant<Boolean, I8, I16, I32, I64, U8, U16, U32, U64, F32, F64, const char*>;
-	using ConstAttrType = std::pair<const char*, ConstAttrValueType>;
 };
 
 RTCXX_NAMESPACE_END
